@@ -299,7 +299,16 @@ LUAEOF
 -- Hyprland plugins loaded by illogical-flake
 ${lib.concatMapStrings (plugin: ''
 hl.plugin("${plugin}/lib/lib${plugin.pname}.so")
-'') cfg.hyprland.plugins}LUAEOF
+'') cfg.hyprland.plugins}
+-- ===== RU/EN keyboard layout =====
+hl.config({
+    input = {
+        kb_layout = "us,ru",
+        kb_options = "grp:alt_shift_toggle",
+    }
+})
+-- ===== end RU/EN keyboard layout =====
+LUAEOF
         chmod u+w "$hyprCustomGeneral"
         echo "Generated hyprland custom/general.lua plugin entries"
       fi
