@@ -95,6 +95,27 @@ Add this flake to your system flake's inputs and use it as a home-manager module
 }
 ```
 
+## Quick start with scripts
+
+Two helper scripts take care of everything:
+
+```bash
+./install.sh [CONFIG_DIR] [CONFIG_NAME]   # из репозитория: установка с нуля
+./update.sh  [CONFIG_DIR] [CONFIG_NAME]   # из любого места: полное обновление + применение
+./update.sh --quick ...                   # обновить только illogical-flake
+```
+
+Defaults: `CONFIG_DIR=~/home-config`, `CONFIG_NAME=default`.
+
+`install.sh` создаёт минимальный home-manager flake в `CONFIG_DIR`, подключает
+этот модуль (`programs.illogical-impulse.enable = true`), делает `nix flake update`
+и применяет конфигурацию (через установленный `home-manager`, либо напрямую через
+`homeConfigurations.<name>.activationPackage`, если CLI не установлен).
+
+`update.sh` обновляет входы flake (по умолчанию все: nixpkgs, home-manager,
+illogical-flake) и пересобирает конфигурацию. Если вы правили `dotfiles/` в
+локальной копии — сначала закоммитьте и запушьте, затем запустите `update.sh`.
+
 ## How the config is sourced
 
 The dotfiles are stored **in this repository** under `dotfiles/` and are sourced from the flake itself (`self`). This means:
