@@ -12,6 +12,7 @@ in
     (import ./home-modules/qt.nix inputs)
     (import ./home-modules/environment.nix inputs)
     (import ./home-modules/dotfiles.nix inputs)
+    (import ./home-modules/opencode.nix inputs)
   ];
 
   # Main options for Illogical Impulse
