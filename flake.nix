@@ -15,9 +15,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Default dotfiles - can be overridden by users
     dotfiles = {
-      url = "git+https://github.com/end-4/dots-hyprland?submodules=1";
+      url = "path:./dotfiles";
       flake = false;
     };
   };
