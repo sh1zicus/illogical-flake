@@ -13,6 +13,8 @@ in
       QT_QPA_PLATFORMTHEME = "qt6ct";  # Use qt6ct for Qt6 theming
       QT_STYLE_OVERRIDE = "";
       ILLOGICAL_IMPULSE_DOTFILES_SOURCE = "${config.home.homeDirectory}/.config";
+      XCURSOR_THEME = "Bibata-Modern-Classic";  # Cursor theme (matches hyprctl setcursor)
+      XCURSOR_SIZE = "24";                       # Cursor size
     };
 
     # Install qt6ct for Qt theming

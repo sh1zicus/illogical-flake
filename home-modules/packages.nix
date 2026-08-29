@@ -112,6 +112,7 @@ in
       adwaita-icon-theme  # GNOME fallback icons
       hicolor-icon-theme  # Base icon theme (required by most themes)
       kdePackages.breeze-icons  # KDE Breeze icons (required by Papirus inheritance)
+      bibata-cursors      # Cursor theme (Bibata-Modern-Classic used by Hyprland)
 
       # Python with required packages for wallpaper analysis
       pythonEnv
