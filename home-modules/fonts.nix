@@ -12,7 +12,7 @@ in
     home.packages = with pkgs; [
       customPkgs.material-symbols
       rubik
-      nurPkgs.repos.skiletro.gabarito
+      dejavu_fonts
       nerd-fonts.ubuntu
       nerd-fonts.ubuntu-mono
       nerd-fonts.jetbrains-mono
