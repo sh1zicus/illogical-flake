@@ -133,8 +133,6 @@ in
       libsecret
     ] ++ lib.optionals cfg.dotfiles.fish.enable [
       fish
-    ] ++ lib.optionals cfg.dotfiles.kitty.enable [
-      kitty
     ] ++ lib.optionals cfg.dotfiles.starship.enable [
       starship
     ];

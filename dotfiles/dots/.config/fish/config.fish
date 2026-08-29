@@ -18,7 +18,7 @@ if status is-interactive
     end
 
     # Aliases
-    # kitty doesn't clear properly so we need to do this weird printing
+    # alternative clear that properly clears the terminal
     alias clear "printf '\033[2J\033[3J\033[1;1H'"
     alias celar "printf '\033[2J\033[3J\033[1;1H'"
     alias claer "printf '\033[2J\033[3J\033[1;1H'"
@@ -26,8 +26,5 @@ if status is-interactive
     alias q 'qs -c ii'
     if test "$TERM" != "linux"
         alias ls 'eza --icons=auto'
-    end
-    if test "$TERM" = "xterm-kitty"
-        alias ssh 'kitten ssh'
     end
 end

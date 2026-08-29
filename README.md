@@ -88,7 +88,6 @@ Add this flake to your system flake's inputs and use it as a home-manager module
     # Customize shell tools (all enabled by default)
     dotfiles = {
       fish.enable = true;     # Fish shell with custom config
-      kitty.enable = true;    # Kitty terminal emulator
       starship.enable = true; # Starship prompt
     };
   };
@@ -142,7 +141,7 @@ illogical-flake/
 ├── pkgs/                      # custom packages (icons, etc.)
 └── dotfiles/
     └── dots/
-        ├── .config/           # main configuration (hypr, quickshell, kitty, fish, ...)
+        ├── .config/           # main configuration (hypr, quickshell, foot, fish, ...)
         └── .local/share/      # icons, konsole profiles
 ```
 
@@ -153,7 +152,7 @@ dotfiles/dots/.config/hypr/                      # Hyprland config (lua-based)
 dotfiles/dots/.config/hypr/custom/               # your overrides: env.lua, general.lua, keybinds.lua, ...
 dotfiles/dots/.config/quickshell/                # QuickShell panel / UI
 dotfiles/dots/.config/fish/                      # fish shell config
-dotfiles/dots/.config/kitty/                     # kitty terminal config
+dotfiles/dots/.config/foot/                      # foot terminal config
 dotfiles/dots/.config/fuzzel/                    # launcher
 dotfiles/dots/.config/wlogout/                   # logout menu
 dotfiles/dots/.config/starship.toml              # prompt
