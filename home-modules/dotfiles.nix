@@ -31,6 +31,8 @@ in
   config = mkIf cfg.enable {
     # Shell programs
     programs.fish.enable = cfg.dotfiles.fish.enable;
+    # No greeting ("Welcome to fish, the friendly interactive shell")
+    programs.fish.interactiveShellInit = "set -g fish_greeting";
     programs.starship.enable = cfg.dotfiles.starship.enable;
 
     # Install plugin .so files into the user environment
