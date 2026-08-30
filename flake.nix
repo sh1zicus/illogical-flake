@@ -1,10 +1,17 @@
 {
-  description = "Illogical Impulse - Home-manager module for end-4's Hyprland dotfiles with QuickShell";
+  description = "NixOS + home-manager (Illogical Impulse) — единый конфиг на базе end-4 Hyprland dotfiles";
 
   inputs = {
-    # These will be overridden by the user's flake
+    # Базовый nixpkgs.
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
+    # home-manager: управление домашними конфигами на языке Nix.
+    home-manager = {
+      url = "github:nix-community/home-manager/master";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # QuickShell (панель/шелл из end-4) и NUR (архив мелких пакетов).
     quickshell = {
       url = "git+https://git.outfoxxed.me/outfoxxed/quickshell";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -15,21 +22,56 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Файлы dotfiles (end-4 dots с фиксами) — хранятся в этом же репозитории.
     dotfiles = {
       url = "path:./dotfiles";
       flake = false;
     };
   };
 
-  outputs = inputs@{ self, nixpkgs, quickshell, nur, dotfiles, ... }:
+  outputs = { self, nixpkgs, home-manager, quickshell, nur, dotfiles, ... }@inputs:
     let
-      flakeInputs = { inherit quickshell nur dotfiles; };
+      system = "x86_64-linux";
+      hostname = "nixos";
+
+      # Home-manager-модуль Illogical Impulse: лежит здесь же (папки
+      # home-module.nix / home-modules / pkgs / dotfiles), так что не нужно
+      # тянуть его из GitHub — конфиги под полным контролем в этом репо.
+      illogicalModule = { config, lib, pkgs, ... }:
+        (import ./home-module.nix) {
+          inherit config lib pkgs;
+          inputs = { inherit quickshell nur dotfiles; };
+        };
     in {
-      # Home-manager module for user configuration
-      homeManagerModules.default = { config, lib, pkgs, ... }: (import ./home-module.nix) {
-        inherit config lib pkgs;
-        inputs = flakeInputs;
+      nixosConfigurations.${hostname} = nixpkgs.lib.nixosSystem {
+        inherit system;
+        modules = [
+          ./configuration.nix
+
+          {
+            # Модуль ожидает 'gnome-icon-theme', удалённый из свежего unstable.
+            # Подменяем на adwaita-icon-theme (уже тянется модулем).
+            nixpkgs.overlays = [
+              (final: prev: {
+                gnome-icon-theme = prev.adwaita-icon-theme;
+              })
+            ];
+          }
+
+          home-manager.nixosModules.home-manager
+          {
+            home-manager = {
+              useGlobalPkgs = true;
+              useUserPackages = true;
+              users.daen2772 = {
+                imports = [
+                  illogicalModule
+                  ./home/daen2772
+                ];
+              };
+            };
+          }
+        ];
       };
-      homeManagerModules.illogical-flake = self.homeManagerModules.default;
     };
 }

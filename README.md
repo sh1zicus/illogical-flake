@@ -1,268 +1,82 @@
-# Illogical Impulse Flake
+# Конфиг NixOS (Illogical Impulse)
 
-Home-manager module for [end-4's Illogical Impulse Hyprland dotfiles](https://github.com/end-4/dots-hyprland) with QuickShell integration.
+Здесь живёт весь конфиг этой машины: **система NixOS** + **home-manager** (твои
+настройки и приложения). Основа — энд-4 «Illogical Impulse» (Hyprland-окружение)
+с подключённым QuickShell, тёмной теме Qt (KDE platform theme + Darkly) и
+долфином.
 
-**Based on**: [xBLACKICEx/end-4-dots-hyprland-nixos](https://github.com/xBLACKICEx/end-4-dots-hyprland-nixos)
+Репозиторий — единый и самодостаточный: клонируешь на любую машину, и всё
+(конфиги, домашние настройки, файлы dotfiles) приезжает вместе с ним.
 
-**Source structure**: the dotfiles live **inside this repository** (in `dotfiles/`), so the config is fully self-contained and versioned on GitHub via this repo. There is **no** external `end-4/dots-hyprland` dependency anymore.
+---
 
-## Table of contents
+## Структура (что где лежит)
 
-- [Installation](#installation)
-- [How the config is sourced](#how-the-config-is-sourced)
-- [Directory layout](#directory-layout)
-- [Changing the config](#changing-the-config)
-- [Applying changes](#applying-changes)
-- [Adding / removing packages](#adding--removing-packages)
-- [Fixing icon themes](#fixing-icon-themes)
-- [Updating the flake](#updating-the-flake)
-- [Rolling back](#rolling-back)
-- [Troubleshooting](#troubleshooting)
-- [What's included](#whats-included)
-- [Credits](#credits)
-
-## Prerequisites
-
-Configure these at the system level (in `configuration.nix`):
-
-```nix
-# Enable Hyprland
-programs.hyprland.enable = true;
-
-# Required services
-services.geoclue2.enable = true;        # For QtPositioning
-services.networkmanager.enable = true;  # For network management
-
-# System fonts (optional but recommended)
-fonts.packages = with pkgs; [
-  rubik
-  nerd-fonts.ubuntu
-  nerd-fonts.jetbrains-mono
-];
+```
+/etc/nixos/
+├── flake.nix                # точка входа: inputs + сборка системы и home-manager
+├── configuration.nix        # системные настройки (пользователи, драйверы, мосты...)
+├── hardware-configuration.nix  # железо (генерируется автоматически)
+├── warp.nix, zapret2-discord.nix # сетевые модули машины
+├── home/
+│   └── daen2772/            # // ЛИЧНЫЕ НАСТРОЙКИ ПОЛЬЗОВАТЕЛЯ //
+│       ├── default.nix      # точка входа: username, импорты ниже
+│       ├── illogical.nix    # включение end-4 окружения (fish, starship)
+│       ├── apps.nix         # твои приложения (bottles, ...)
+│       └── shell.nix        # настройки оболочки (fish, starship)
+├── home-module.nix          # модуль Illogical Impulse (end-4/QuickShell)
+├── home-modules/            # его части: fonts, packages, qt, env, dotfiles...
+├── pkgs/                    # локальные пакеты (иконки, шрифты)
+├── dotfiles/                # файлы конфигов end-4 (hypr, kitty, ...)
+├── update.sh                # обновить и применить конфиг
+├── install.sh               # применить/установить (на свежей машине)
+└── README.md                # этот файл
 ```
 
-## Installation
+## Как пользоваться
 
-Add this flake to your system flake's inputs and use it as a home-manager module:
+### 1. Изменить настройки
 
-```nix
-{
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+Выбери файл под нужное, отредактируй и примени (см. ниже):
 
-    home-manager = {
-      url = "github:nix-community/home-manager";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+- **Поставить приложение** → `home/daen2772/apps.nix` (в `home.packages`).
+- **Изменить настройки приложения** → добавь файл вида `home/daen2772/<app>.nix`
+  с опциями home-manager (например `programs.foo.enable = true;`) и пропиши его
+  в `imports` в `home/daen2772/default.nix`.
+- **Система** (драйверы, сервисы) → `configuration.nix`.
+- **Внешний вид/тема Qt** → `home-modules/qt.nix` и `home-modules/environment.nix`.
 
-    illogical-flake = {
-      url = "github:sh1zicus/illogical-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-  };
-
-  outputs = { nixpkgs, home-manager, illogical-flake, ... }: {
-    homeConfigurations.default = home-manager.lib.homeManagerConfiguration {
-      pkgs = nixpkgs.legacyPackages.x86_64-linux;
-      modules = [
-        illogical-flake.homeManagerModules.default
-        {
-          programs.illogical-impulse.enable = true;
-        }
-      ];
-    };
-  };
-}
-```
-
-### Full configuration
-
-```nix
-{
-  programs.illogical-impulse = {
-    enable = true;
-
-    # Optional: enable OpenCode AI coding agent
-    opencode.enable = true;
-
-    # Customize shell tools (all enabled by default)
-    dotfiles = {
-      fish.enable = true;     # Fish shell with custom config
-      starship.enable = true; # Starship prompt
-    };
-  };
-}
-```
-
-## Quick start with scripts
-
-Two helper scripts take care of everything:
+### 2. Применить изменения / обновить
 
 ```bash
-./install.sh [CONFIG_DIR] [CONFIG_NAME]   # из репозитория: установка с нуля
-./update.sh  [CONFIG_DIR] [CONFIG_NAME]   # из любого места: полное обновление + применение
-./update.sh --quick ...                   # обновить только illogical-flake
+cd /etc/nixos
+./update.sh          # полностью: обновить пакеты и применить
+./update.sh --quick  # просто применить текущий конфиг (без обновления пакетов)
 ```
 
-Defaults: `CONFIG_DIR=~/home-config`, `CONFIG_NAME=default`.
+Скрипт спросит пароль `sudo`. После этого система пересобирается и конфиг
+применяется.
 
-`install.sh` создаёт минимальный home-manager flake в `CONFIG_DIR`, подключает
-этот модуль (`programs.illogical-impulse.enable = true`), делает `nix flake update`
-и применяет конфигурацию (через установленный `home-manager`, либо напрямую через
-`homeConfigurations.<name>.activationPackage`, если CLI не установлен).
-
-`update.sh` обновляет входы flake (по умолчанию все: nixpkgs, home-manager,
-illogical-flake) и пересобирает конфигурацию. Если вы правили `dotfiles/` в
-локальной копии — сначала закоммитьте и запушьте, затем запустите `update.sh`.
-
-## How the config is sourced
-
-The dotfiles are stored **in this repository** under `dotfiles/` and are sourced from the flake itself (`self`). This means:
-
-- When you consume this flake via `github:sh1zicus/illogical-flake`, the config is read from **the GitHub checkout** of this repo.
-- During local development (using `path:`, for example), it is read from your local working copy.
-- There is no separate `dotfiles` flake-input to override anymore.
-
-> **Note:** A flake locks its inputs to a specific Git revision (stored in `flake.lock`). To get the latest config after pushing, you must update the `illogical-flake` input — see [Updating the flake](#updating-the-flake).
-
-## Directory layout
-
-```
-illogical-flake/
-├── flake.nix                  # flake definition, dotfiles sourced via `self`
-├── home-module.nix            # main home-manager module
-├── home-modules/
-│   ├── dotfiles.nix           # copies dotfiles/ → $HOME, generates hypr custom/*.lua
-│   ├── packages.nix           # core packages (tools, GUI apps, themes)
-│   ├── qt.nix                 # Qt/QuickShell packages
-│   ├── environment.nix        # session environment variables
-│   ├── fonts.nix              # fonts
-│   └── opencode.nix           # OpenCode agent (optional)
-├── pkgs/                      # custom packages (icons, etc.)
-└── dotfiles/
-    └── dots/
-        ├── .config/           # main configuration (hypr, quickshell, foot, fish, ...)
-        └── .local/share/      # icons, konsole profiles
-```
-
-The most useful edit targets:
-
-```
-dotfiles/dots/.config/hypr/                      # Hyprland config (lua-based)
-dotfiles/dots/.config/hypr/custom/               # your overrides: env.lua, general.lua, keybinds.lua, ...
-dotfiles/dots/.config/quickshell/                # QuickShell panel / UI
-dotfiles/dots/.config/fish/                      # fish shell config
-dotfiles/dots/.config/foot/                      # foot terminal config
-dotfiles/dots/.config/fuzzel/                    # launcher
-dotfiles/dots/.config/wlogout/                   # logout menu
-dotfiles/dots/.config/starship.toml              # prompt
-```
-
-## Changing the config
-
-1. Edit any file under `dotfiles/dots/.config/` in this repository.
-2. Commit and push:
+### 3. Откатиться, если сломалось
 
 ```bash
-cd ~/Repos/illogical-flake
-git add -A
-git commit -m "update hypr config"
-git push
+sudo nixos-rebuild switch --rollback   # вернуть предыдущую рабочую версию
+cd /etc/nixos && git log --oneline     # посмотреть последние изменения
+git revert HEAD                        # отменить последний коммит
 ```
 
-The `dotfiles.nix` module copies the contents of `dotfiles/dots/.config` and `dotfiles/dots/.local/share` into your `$HOME` on every activation. Files are **copied** (not symlinked), and the `hypr/custom/*.lua` overrides are regenerated at activation time.
-
-> **Heads-up:** because files are copied, anything already present in `~/.config` from a previous run is replaced. This is how the upstream Illogical Impulse config is designed to behave. If you need a value that survives switching, prefer editing the files in `dotfiles/` and committing them.
-
-## Applying changes
-
-Because the config is pulled from GitHub, the flow is:
+### 4. Новая машина (бэкап/переезд)
 
 ```bash
-cd ~/Repos/configs/hosts
-nix flake update illogical-flake
-home-manager switch --flake .#default
+git clone <адрес-этого-репозитория> ~/nixos
+sudo cp -r ~/nixos /etc/nixos
+sudo nixos-generate-config --dir /etc/nixos   # сгенерировать файл железа
+cd /etc/nixos && ./install.sh
 ```
 
-Or, as a one-liner:
+## Полезное
 
-```bash
-cd ~/Repos/configs && nix flake update illogical-flake && home-manager switch --flake .#default
-```
-
-> Replace `default` with your actual home-manager configuration name, and `~/Repos/configs` with the path to your system flake.
-
-## Adding / removing packages
-
-Packages are declared in `home-modules/packages.nix` under `home.packages`. Add or remove entries and then apply the change:
-
-```bash
-# edit home-modules/packages.nix
-git add -A && git commit -m "add package" && git push
-
-# apply
-cd ~/Repos/configs && nix flake update illogical-flake && home-manager switch --flake .#default
-```
-
-## Fixing icon themes
-
-Icon theme fixes (OneUI/Papirus inheritance, `inode-directory` symlinks, icon cache updates) are applied by the activation script in `home-modules/dotfiles.nix`. You don't need to do anything manually — they run on every switch.
-
-## Updating the flake
-
-To pull the latest changes from GitHub into your system:
-
-```bash
-cd ~/Repos/configs/hosts
-nix flake update illogical-flake
-nix flake lock --update-input illogical-flake   # alternative, updates only this input
-home-manager switch --flake .#default
-```
-
-To update the underlying `nixpkgs` / `home-manager` inputs as well:
-
-```bash
-cd ~/Repos/configs/hosts
-nix flake update
-home-manager switch --flake .#default
-```
-
-## Rolling back
-
-Roll back to the previous home-manager generation:
-
-```bash
-home-manager generations
-home-manager switch --flake .#default --rollback
-```
-
-Or simply point the `illogical-flake` input back to a previous revision of this repository.
-
-## Troubleshooting
-
-**Changes to `dotfiles/` are not applied.**
-Make sure you committed and pushed the changes in `illogical-flake`, then ran `nix flake update illogical-flake`. Flakes lock inputs to a revision; uncommitted or unpushed edits are not picked up.
-
-**Build fails with a removed package error.**
-If a package in `home-modules/packages.nix` was removed from `nixpkgs` (for example `gnome-icon-theme`), remove the line, commit, push, and update.
-
-**`home.stateVersion` / `home.username` not set.**
-Your system flake must define `home.username`, `home.homeDirectory`, and `home.stateVersion`.
-
-## What's included
-
-- **QuickShell**: Qt6-based desktop shell with Material Design 3
-- **Dynamic Theming**: automatic color palette generation from wallpapers
-- **Complete UI**: bar, sidebars, lock screen, logout menu
-- **Power Management**: hypridle, hyprlock, hyprsunset
-- **Tools**: fuzzel launcher, wlogout, hyprshot, hyprpicker, and more
-- **Python Environment**: pre-configured for wallpaper analysis scripts
-- **Qt/QML Modules**: complete Qt6 setup including QtPositioning
-- **Fonts**: Material Symbols, Nerd Fonts, and UI fonts
-- **OpenCode** (optional): AI coding agent
-
-## Credits
-
-- **[end-4](https://github.com/end-4)** - Creator of the Illogical Impulse dotfiles
-- **[xBLACKICEx](https://github.com/xBLACKICEx)** - Original NixOS flake
-- **[outfoxxed](https://git.outfoxxed.me/outfoxxed/quickshell)** - QuickShell developer
+- После смены конфига достаточно `./update.sh` — Hyprland после перелогина
+  подхватит всё новое (пакеты, переменные окружения).
+- Кнопка отката в git: любой коммит можно безопасно `git revert` — система
+  переживёт.
