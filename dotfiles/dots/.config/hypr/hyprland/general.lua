@@ -1,7 +1,16 @@
 -- MONITOR CONFIG
+-- Default for all monitors not matching a specific rule below.
 hl.monitor({
     output = "",
     mode = "preferred",
+    position = "auto",
+    scale = 1
+})
+-- Custom modeline for HDMI-A-1: 1680x1050 @ 100Hz (CVT-RB 16:10, PCLK 196.33MHz).
+-- Overrides the wildcard rule above for this output.
+hl.monitor({
+    output = "HDMI-A-1",
+    mode = "modeline 196.33 1680 1728 1760 1840 1050 1053 1063 1067 +hsync -vsync",
     position = "auto",
     scale = 1
 })
