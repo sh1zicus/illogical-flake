@@ -87,6 +87,7 @@ in
       imagemagick
       ffmpeg
       gnome-settings-daemon  # Provides gsettings
+      gsettings-desktop-schemas  # Provides gsettings schemas (org.gnome.desktop.interface)
       libnotify  # Provides notify-send
       easyeffects
       grim

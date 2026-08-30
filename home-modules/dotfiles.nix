@@ -102,6 +102,9 @@ in
     dconf.settings = {
       "org/gnome/desktop/interface" = {
         icon-theme = mkDefault "OneUI-dark";
+        # Base GTK theme that matugen's gtk.css layers colors on top of
+        color-scheme = mkDefault "prefer-dark";
+        gtk-theme = mkDefault "adw-gtk3";
       };
     };
 
