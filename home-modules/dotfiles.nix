@@ -303,8 +303,6 @@ hl.env("XDG_DATA_DIRS",
   ":" .. home_dir .. "/.nix-profile/share" ..
   ":/etc/profiles/per-user/" .. user .. "/share" ..
   ":/run/current-system/sw/share" ..
-  ":" .. home_dir .. "/.local/share/flatpak/exports/share" ..
-  ":/var/lib/flatpak/exports/share" ..
   ":/usr/local/share:/usr/share")
 
 -- Use qt6ct (available in Nix profile) instead of upstream "kde"
