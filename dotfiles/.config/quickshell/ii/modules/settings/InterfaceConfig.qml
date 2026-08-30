@@ -318,13 +318,67 @@ ContentPage {
         icon: "point_scan"
         title: Translation.tr("Overlay: Crosshair")
 
-        MaterialTextArea {
-            Layout.fillWidth: true
-            placeholderText: Translation.tr("Crosshair code (in Valorant's format)")
-            text: Config.options.crosshair.code
-            wrapMode: TextEdit.Wrap
-            onTextChanged: {
-                Config.options.crosshair.code = text;
+        ConfigSpinBox {
+            icon: "circle"
+            text: Translation.tr("Dot size")
+            value: Config.options.crosshair.dotSize
+            from: 1
+            to: 50
+            stepSize: 1
+            onValueChanged: {
+                Config.options.crosshair.dotSize = value;
+            }
+        }
+
+        ConfigSpinBox {
+            icon: "border_style"
+            text: Translation.tr("Outline thickness")
+            value: Config.options.crosshair.outlineThickness
+            from: 0
+            to: 10
+            stepSize: 1
+            onValueChanged: {
+                Config.options.crosshair.outlineThickness = value;
+            }
+        }
+
+        ContentSubsection {
+            title: Translation.tr("Colors")
+
+            ConfigRow {
+                StyledText {
+                    Layout.leftMargin: 10
+                    Layout.preferredWidth: 120
+                    text: Translation.tr("Dot color")
+                    color: Appearance.colors.colOnSecondaryContainer
+                }
+                MaterialTextArea {
+                    Layout.fillWidth: true
+                    placeholderText: "#RRGGBB"
+                    text: Config.options.crosshair.color
+                    wrapMode: TextEdit.NoWrap
+                    onTextChanged: {
+                        Config.options.crosshair.color = text;
+                    }
+                }
+            }
+
+            ConfigRow {
+                StyledText {
+                    Layout.leftMargin: 10
+                    Layout.preferredWidth: 120
+                    text: Translation.tr("Outline color")
+                    color: Appearance.colors.colOnSecondaryContainer
+                }
+                MaterialTextArea {
+                    Layout.fillWidth: true
+                    placeholderText: "#RRGGBB"
+                    text: Config.options.crosshair.outlineColor
+                    wrapMode: TextEdit.NoWrap
+                    onTextChanged: {
+                        Config.options.crosshair.outlineColor = text;
+                    }
+                }
             }
         }
 
@@ -337,18 +391,6 @@ ContentPage {
             }
             Item {
                 Layout.fillWidth: true
-            }
-            RippleButtonWithIcon {
-                id: editorButton
-                buttonRadius: Appearance.rounding.full
-                materialIcon: "open_in_new"
-                mainText: Translation.tr("Open editor")
-                onClicked: {
-                    Qt.openUrlExternally(`https://www.vcrdb.net/builder?c=${Config.options.crosshair.code}`);
-                }
-                StyledToolTip {
-                    text: "www.vcrdb.net"
-                }
             }
         }
     }

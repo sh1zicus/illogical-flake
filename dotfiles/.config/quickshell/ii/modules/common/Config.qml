@@ -318,11 +318,11 @@ Singleton {
             }
 
             property JsonObject crosshair: JsonObject {
-                // Valorant crosshair format. Use https://www.vcrdb.net/builder.
-                // From https://www.vcrdb.net/crosshair/85 (Small Dot) with the
-                // inner lines removed (0l=0) so it renders as a clean white dot
-                // with a black outline.
-                property string code: "0;P;d;1;f;0;0t;4;0l;0;0o;0;0a;1;0f;0;1b;0"
+                // Simple round dot crosshair.
+                property string color: "#FFFFFF"
+                property string outlineColor: "#000000"
+                property int dotSize: 4
+                property int outlineThickness: 1
             }
 
             property JsonObject dock: JsonObject {
