@@ -117,6 +117,12 @@ in
       # Directories to exclude from copying (QuickShell manages these dynamically)
       excludedDirs=("illogical-impulse")
 
+      # Files to preserve if they already exist. The wallpaper pipeline merges
+      # the generated MaterialYou color scheme into ~/.config/kdeglobals, so
+      # clobbering it with the static default on every switch resets Qt app
+      # colors. Keep the user's runtime-managed copy instead.
+      preserveFiles=("kdeglobals")
+
       # Copy all items from dotfiles .config to user .config
       $DRY_RUN_CMD mkdir -p "$targetPath"
 
@@ -133,6 +139,7 @@ in
 
       for item in "$configPath"/*; do
         itemName=$(basename "$item")
+        targetItem="$targetPath/$itemName"
 
         # Skip excluded directories
         skip=false
@@ -147,7 +154,18 @@ in
           continue
         fi
 
-        targetItem="$targetPath/$itemName"
+        # Skip runtime-managed files that already exist (keep user's version)
+        preserve=false
+        for preserved in "''${preserveFiles[@]}"; do
+          if [ "$itemName" = "$preserved" ] && [ -e "$targetItem" ]; then
+            preserve=true
+            break
+          fi
+        done
+
+        if [ "$preserve" = true ]; then
+          continue
+        fi
 
         # Remove existing file/directory if it exists
         if [ -e "$targetItem" ] || [ -L "$targetItem" ]; then
