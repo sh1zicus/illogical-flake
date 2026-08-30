@@ -256,7 +256,7 @@ hl.config({
     input = {
         kb_layout = "us,ru",
         numlock_by_default = true,
-	kb_options = "grp:alt_shift_toggle",
+	    kb_options = "grp:alt_shift_toggle",
         repeat_delay = 250,
         repeat_rate = 35,
 
