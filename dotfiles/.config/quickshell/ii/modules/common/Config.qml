@@ -319,7 +319,7 @@ Singleton {
 
             property JsonObject crosshair: JsonObject {
                 // Valorant crosshair format. Use https://www.vcrdb.net/builder
-                property string code: "0;P;d;1;0l;10;0o;2;1b;0"
+                property string code: "0;P;d;1;f;0;0t;4;0l;1;0o;0;0a;1;0f;0;1b;0" // "Small Dot", https://www.vcrdb.net/crosshair/85
             }
 
             property JsonObject dock: JsonObject {

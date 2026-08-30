@@ -131,11 +131,13 @@ Item {
         id: centerDot
         visible: root.centerDot
         anchors.centerIn: parent
+        z: 10 // Above the hair lines, like Valorant: the dot hides line overlap
 
         color: root.crosshairColor
         opacity: root.centerDotOpacity
         width: centerDotTotalSize
         height: width
+        radius: centerDotTotalSize / 2 // Round dot, matches the generator
 
         border.width: root.borderWidth
         border.color: root.borderColor
