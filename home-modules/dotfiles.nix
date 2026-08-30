@@ -163,12 +163,33 @@ in
 
       echo "Copied Illogical Impulse configuration files to ~/.config"
 
-      # Fix Qt icon theme configuration to use OneUI-dark/OneUI-light with Papirus fallback
-      for qt_conf in "$targetPath/qt5ct/qt5ct.conf" "$targetPath/qt6ct/qt6ct.conf"; do
-        if [ -f "$qt_conf" ]; then
-          # Replace OneUI with OneUI-dark, OneUI-light stays as-is
+      # Fix Qt icon theme configuration to use OneUI-dark/OneUI-light with Papirus fallback.
+      # Qt apps use qt6ct as the platform theme (QT_QPA_PLATFORMTHEME=qt6ct), so they read
+      # the icon theme from qt6ct.conf (and qt5ct.conf) -> icon_theme=. If the config file is
+      # absent, Qt falls back to kdeglobals [Icons] Theme=breeze-dark and the OneUI icon pack
+      # is never used by the shell/widgets. Ensure the file exists with the right theme.
+      qt_theme="OneUI-dark"
+      if [ "$(grep -q 'color-scheme=.*light' "$targetPath/qt6ct/qt6ct.conf" 2>/dev/null && echo light)" = "light" ]; then
+        qt_theme="OneUI-light"
+      fi
+      for qt_dir in "$targetPath/qt5ct" "$targetPath/qt6ct"; do
+        qt_conf="$qt_dir/$(basename $qt_dir).conf"
+        $DRY_RUN_CMD mkdir -p "$qt_dir"
+        if [ ! -f "$qt_conf" ]; then
+          $DRY_RUN_CMD printf '[Appearance]\nicon_theme=%s\nstyle=Fusion\n' "$qt_theme" > "$qt_conf"
+          echo "Created $(basename $qt_dir).conf with icon_theme=$qt_theme"
+        else
+          # Replace OneUI with OneUI-dark (OneUI-light stays as-is)
           $DRY_RUN_CMD sed -i 's/^icon_theme=OneUI$/icon_theme=OneUI-dark/' "$qt_conf"
           $DRY_RUN_CMD sed -i 's/^icon_theme=OneUI-light$/icon_theme=OneUI-light/' "$qt_conf"
+          # Add icon_theme if the [Appearance] section exists but has no icon_theme key
+          if ! $DRY_RUN_CMD grep -q '^icon_theme=' "$qt_conf" 2>/dev/null; then
+            if $DRY_RUN_CMD grep -q '^\[Appearance\]' "$qt_conf" 2>/dev/null; then
+              $DRY_RUN_CMD sed -i '/^\[Appearance\]/a icon_theme=OneUI-dark' "$qt_conf"
+            else
+              printf '\n[Appearance]\nicon_theme=OneUI-dark\n' >> "$qt_conf"
+            fi
+          fi
           echo "Updated Qt icon theme in $(basename $(dirname $qt_conf))"
         fi
       done
