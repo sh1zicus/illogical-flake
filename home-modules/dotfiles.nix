@@ -163,36 +163,38 @@ in
 
       echo "Copied Illogical Impulse configuration files to ~/.config"
 
-      # Fix Qt icon theme configuration to use OneUI-dark/OneUI-light with Papirus fallback.
-      # Qt apps use qt6ct as the platform theme (QT_QPA_PLATFORMTHEME=qt6ct), so they read
-      # the icon theme from qt6ct.conf (and qt5ct.conf) -> icon_theme=. If the config file is
-      # absent, Qt falls back to kdeglobals [Icons] Theme=breeze-dark and the OneUI icon pack
-      # is never used by the shell/widgets. Ensure the file exists with the right theme.
-      qt_theme="OneUI-dark"
-      if [ "$(grep -q 'color-scheme=.*light' "$targetPath/qt6ct/qt6ct.conf" 2>/dev/null && echo light)" = "light" ]; then
-        qt_theme="OneUI-light"
+      # Fix Qt theming consistency. Qt/KDE apps read kdeglobals for colors,
+      # icons and fonts (QT_QPA_PLATFORMTHEME=kde, see environment.nix), so the
+      # single source of truth must be kdeglobals - NOT qt5ct/qt6ct.conf (which
+      # upstream end-4 doesn't ship and whose plugins nix-wrapped apps can't load).
+      kdeglobals_conf="$targetPath/kdeglobals"
+
+      # 1) Icon theme: always Breeze so Dolphin/KDE apps and Qt icons match.
+      #    (breeze-dark for dark color-scheme, breeze for light)
+      icon_theme="breeze-dark"
+      if [ "$(grep -q 'prefer-light' "$targetPath/gtk-3.0/settings.ini" 2>/dev/null && echo light)" = "light" ]; then
+        icon_theme="breeze"
       fi
-      for qt_dir in "$targetPath/qt5ct" "$targetPath/qt6ct"; do
-        qt_conf="$qt_dir/$(basename $qt_dir).conf"
-        $DRY_RUN_CMD mkdir -p "$qt_dir"
-        if [ ! -f "$qt_conf" ]; then
-          $DRY_RUN_CMD printf '[Appearance]\nicon_theme=%s\nstyle=Fusion\n' "$qt_theme" > "$qt_conf"
-          echo "Created $(basename $qt_dir).conf with icon_theme=$qt_theme"
+      if [ -f "$kdeglobals_conf" ]; then
+        if $DRY_RUN_CMD grep -q '^\[Icons\]' "$kdeglobals_conf"; then
+          $DRY_RUN_CMD sed -i "s/^Theme=.*/Theme=$icon_theme/" "$kdeglobals_conf"
         else
-          # Replace OneUI with OneUI-dark (OneUI-light stays as-is)
-          $DRY_RUN_CMD sed -i 's/^icon_theme=OneUI$/icon_theme=OneUI-dark/' "$qt_conf"
-          $DRY_RUN_CMD sed -i 's/^icon_theme=OneUI-light$/icon_theme=OneUI-light/' "$qt_conf"
-          # Add icon_theme if the [Appearance] section exists but has no icon_theme key
-          if ! $DRY_RUN_CMD grep -q '^icon_theme=' "$qt_conf" 2>/dev/null; then
-            if $DRY_RUN_CMD grep -q '^\[Appearance\]' "$qt_conf" 2>/dev/null; then
-              $DRY_RUN_CMD sed -i '/^\[Appearance\]/a icon_theme=OneUI-dark' "$qt_conf"
-            else
-              printf '\n[Appearance]\nicon_theme=OneUI-dark\n' >> "$qt_conf"
-            fi
-          fi
-          echo "Updated Qt icon theme in $(basename $(dirname $qt_conf))"
+          printf '\n[Icons]\nTheme=%s\n' "$icon_theme" >> "$kdeglobals_conf"
         fi
+        echo "Set kdeglobals icon theme to $icon_theme"
+      fi
+
+      # 2) Fonts: upstream references "Google Sans Flex" which isn't installed
+      #    (fc-match falls back to DejaVu). Use Rubik (installed, used by the shell).
+      for entry in "font=Google Sans Flex,11,-1,5,500,0,0,0,0,0,0,0,0,0,0,1,Medium" \
+                   "menuFont=Google Sans Flex,10,-1,5,500,0,0,0,0,0,0,0,0,0,0,1,Medium" \
+                   "smallestReadableFont=Google Sans Flex,9,-1,5,500,0,0,0,0,0,0,0,0,0,0,1,Medium" \
+                   "toolBarFont=Google Sans Flex,10,-1,5,500,0,0,0,0,0,0,0,0,0,0,1,Medium" \
+                   "activeFont=Google Sans Flex,10,-1,5,500,0,0,0,0,0,0,0,0,0,0,1,Medium"; do
+        key="''${entry%%=*}"
+        $DRY_RUN_CMD sed -i "/^''${key}=/s|Google Sans Flex,''${key#font}|Rubik,''${key#font}|; /^''${key}=/s|Google Sans Flex|Rubik|g" "$kdeglobals_conf"
       done
+      echo "Fixed kdeglobals fonts (Google Sans Flex -> Rubik)"
 
       # Fix fontconfig conf.d if it's a file instead of directory
       if [ -f "$targetPath/fontconfig/conf.d" ]; then
@@ -326,8 +328,16 @@ hl.env("XDG_DATA_DIRS",
   ":/run/current-system/sw/share" ..
   ":/usr/local/share:/usr/share")
 
--- Use qt6ct (available in Nix profile) instead of upstream "kde"
-hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
+-- Use the KDE platform theme (reads kdeglobals: color scheme, icons, fonts)
+hl.env("QT_QPA_PLATFORMTHEME", "kde")
+
+-- Expose Qt plugins from the user/nix profiles so custom widget styles and
+-- platform themes (darkly, plasma-integration, ...) are found by Qt apps.
+hl.env("QT_PLUGIN_PATH",
+  home_dir .. "/.nix-profile/lib/qt-5/plugins" ..
+  ":" .. home_dir .. "/.nix-profile/lib/qt-6/plugins" ..
+  ":/etc/profiles/per-user/" .. user .. "/lib/qt-6/plugins" ..
+  ":" .. (os.getenv("QT_PLUGIN_PATH") or ""))
 LUAEOF
         chmod u+w "$hyprCustomEnv"
         echo "Generated hyprland custom/env.lua with NixOS paths"

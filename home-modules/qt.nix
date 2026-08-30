@@ -74,9 +74,11 @@ EOF
                   pkgs.kdePackages.qtsvg
                   pkgs.kdePackages.qtwayland
                   pkgs.kdePackages.qtimageformats
+                  pkgs.kdePackages.plasma-integration
                   pkgs.qt6Packages.qt6ct
+                  pkgs.darkly
                 ]}" \
-                --set QT_QPA_PLATFORMTHEME "qt6ct" \
+                --set QT_QPA_PLATFORMTHEME "kde" \
                 --prefix PATH : "${pythonEnv}/bin" \
                 --set ILLOGICAL_IMPULSE_VIRTUAL_ENV "$out/venv" \
                 --prefix XDG_DATA_DIRS : "\$HOME/.local/share:\$HOME/.nix-profile/share:/etc/profiles/per-user/\$USER/share:/nix/var/nix/profiles/default/share:/run/current-system/sw/share"
