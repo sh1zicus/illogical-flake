@@ -42,6 +42,9 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # Lutris game client (official home-manager module)
+    programs.lutris.enable = true;
+
     # User packages for Illogical Impulse
     home.packages = with pkgs; [
       # Core utilities
@@ -66,6 +69,7 @@ in
       foot
       fuzzel
       matugen
+      steam
       mpv
       mpvpaper
       swappy
