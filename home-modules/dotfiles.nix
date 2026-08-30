@@ -196,6 +196,13 @@ in
       done
       echo "Fixed kdeglobals fonts (Google Sans Flex -> Rubik)"
 
+      # 3) Remove stale qt5ct/qt6ct configs (created by older illogical-flake
+      #    versions when qt6ct was the platform theme). They are dead config
+      #    now and only mislead the qt5ct/qt6ct settings dialogs (e.g. showing
+      #    DejaVu 12 instead of the real kdeglobals font).
+      $DRY_RUN_CMD rm -rf "$targetPath/qt5ct" "$targetPath/qt6ct"
+      echo "Removed stale qt5ct/qt6ct configs"
+
       # Fix fontconfig conf.d if it's a file instead of directory
       if [ -f "$targetPath/fontconfig/conf.d" ]; then
         $DRY_RUN_CMD rm "$targetPath/fontconfig/conf.d"
