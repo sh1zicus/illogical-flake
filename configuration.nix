@@ -73,6 +73,12 @@
     nano
     opencode
     wine
+
+    # GSettings + dconf: needed for the end-4 wallpaper pipeline, which stores
+    # the dark/light mode in org.gnome.desktop.interface.color-scheme and
+    # kde-material-you-colors-wrapper.sh reads it back (see dotfiles).
+    gsettings-desktop-schemas
+    dconf
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
