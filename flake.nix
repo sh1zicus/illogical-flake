@@ -11,6 +11,15 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Zen Browser (Firefox-форк).
+    zen-browser = {
+      url = "github:0xc000022070/zen-browser-flake";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        home-manager.follows = "home-manager";
+      };
+    };
+
     # QuickShell (панель/шелл из end-4) и NUR (архив мелких пакетов).
     quickshell = {
       url = "git+https://git.outfoxxed.me/outfoxxed/quickshell";
@@ -66,6 +75,7 @@
               users.daen2772 = {
                 imports = [
                   illogicalModule
+                  inputs.zen-browser.homeModules.twilight
                   ./home/daen2772
                 ];
               };
