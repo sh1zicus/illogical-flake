@@ -27,7 +27,7 @@
 ├── home-module.nix          # модуль Illogical Impulse (end-4/QuickShell)
 ├── home-modules/            # его части: fonts, packages, qt, env, dotfiles...
 ├── pkgs/                    # локальные пакеты (иконки, шрифты)
-├── dotfiles/                # файлы конфигов end-4 (hypr, kitty, ...)
+├── dotfiles/                # файлы конфигов end-4 (.config, .local) — копируются в ~
 ├── update.sh                # обновить и применить конфиг
 ├── install.sh               # применить/установить (на свежей машине)
 └── README.md                # этот файл

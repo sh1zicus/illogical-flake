@@ -111,7 +111,7 @@ in
     # Use activation script to copy files instead of symlinking
     home.activation.copyIllogicalImpulseConfigs = config.lib.dag.entryAfter ["writeBoundary"] ''
       # Path to the config directory in the dotfiles source
-      configPath="${dotfilesSource}/dots/.config"
+      configPath="${dotfilesSource}/.config"
       targetPath="$HOME/.config"
 
       # Directories to exclude from copying (QuickShell manages these dynamically)
@@ -211,7 +211,7 @@ in
       fi
 
       # Copy .local/share contents (icons, etc.)
-      localSharePath="${dotfilesSource}/dots/.local/share"
+      localSharePath="${dotfilesSource}/.local/share"
       targetLocalShare="$HOME/.local/share"
 
       if [ -d "$localSharePath" ]; then
