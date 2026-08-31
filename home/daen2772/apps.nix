@@ -15,6 +15,15 @@
       name = "default";
       settings = {
         "widget.gtk.ignore-adwaita" = false;
+
+        # Русский интерфейс (Download langpack при первом запуске).
+        "intl.locale.requested" = "ru";
+        "intl.accept_languages" = "ru,en-US";
+        "intl.multilingual.downloadEnabled" = true;
+
+        # Look & feel — collapsed sidebar (сайдбар сворачивается, выезжает по наведению).
+        "zen.view.sidebar.expanded" = false;
+        "zen.view.compact.hide-tabbar" = true;
       };
     };
   };
