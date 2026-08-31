@@ -11,10 +11,7 @@ Loader {
     visible: active
 
     function abbreviateLayoutCode(fullCode) {
-    return fullCode.split(':').map(layout => {
-            const baseLayout = layout.split('-')[0];
-            return baseLayout.slice(0, 4);
-        }).join('\n');
+        return fullCode.split(' ')[0].slice(0, 4);
     }
 
     sourceComponent: Item {
@@ -26,7 +23,7 @@ Loader {
             anchors.centerIn: parent
             horizontalAlignment: Text.AlignHCenter
             text: abbreviateLayoutCode(HyprlandXkb.currentLayoutCode)
-            font.pixelSize: text.includes("\n") ? Appearance.font.pixelSize.smallie : Appearance.font.pixelSize.small
+            font.pixelSize: Appearance.font.pixelSize.small
             color: root.color
             animateChange: true
         }
