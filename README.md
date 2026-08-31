@@ -17,7 +17,12 @@
 ├── flake.nix                # точка входа: inputs + сборка системы и home-manager
 ├── configuration.nix        # системные настройки (пользователи, драйверы, мосты...)
 ├── hardware-configuration.nix  # железо (генерируется автоматически)
-├── warp.nix, zapret2-discord.nix # сетевые модули машины
+├── system-modules/               # // СИСТЕМНЫЕ МОДУЛИ (по полочкам) //
+│   └── network/
+│       ├── warp.nix              # Cloudflare WARP (обход блокировок)
+│       ├── zapret.nix            # Discord DPI bypass (zapret2)
+│       └── stalzone-blocker.nix  # блокировка серверов Stalzone (dynamic nft)
+├── system-modules/network/       # сетевые модули машины
 ├── home/
 │   └── daen2772/            # // ЛИЧНЫЕ НАСТРОЙКИ ПОЛЬЗОВАТЕЛЯ //
 │       ├── default.nix      # точка входа: username, импорты ниже
