@@ -8,11 +8,12 @@
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
-      ./zapret2-discord.nix
-      ./warp.nix
+      # Сетевые модули машины (обход блокировок и защита от них).
+      ./system-modules/network/warp.nix
+      ./system-modules/network/zapret.nix
       # Чистый NixOS-модуль блокировки серверов Stalzone/Stalcraft
       # (замена sz-server-blocker; настройка декларативно через NixOS).
-      ./stalzone-blocker.nix
+      ./system-modules/network/stalzone-blocker.nix
     ];
 
   # Use the GRUB 2 boot loader.
