@@ -4,6 +4,10 @@
 
 { config, pkgs, ... }:
 
+let
+  # Локальные пакеты из ./pkgs (см. pkgs/default.nix).
+  customPkgs = import ./pkgs { inherit pkgs; };
+in
 {
   imports =
     [ # Include the results of the hardware scan.
@@ -119,6 +123,26 @@
     gsettings-desktop-schemas
     dconf
   ];
+
+  # Declarative systemd unit для stalzone-server-blocker (вместо того, чтобы
+  # инструмент писал unit в read-only /etc/systemd/system на NixOS).
+  # Зеркалит то, что делает сам инструмент с apply_on_boot: применяет
+  # блокировку при загрузке, снимает при выключении.
+  systemd.services.stalzone-server-blocker = {
+    description = "Stalzone server blocker";
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+    wantedBy = [ "multi-user.target" ];
+    # Инструмент вызывает nft/iptables по PATH — добавляем их в окружение юнита.
+    path = with pkgs; [ nftables iptables ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${customPkgs.stalzone-server-blocker}/bin/stalzone-server-blocker apply";
+      ExecStop = "${customPkgs.stalzone-server-blocker}/bin/stalzone-server-blocker clear";
+    };
+  };
+
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
