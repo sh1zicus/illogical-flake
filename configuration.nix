@@ -62,6 +62,26 @@
     packages = with pkgs; [];
   };
 
+  # Разрешить daen2772 переключать CPU governor (performance/schedutil) без
+  # пароля — это нужно кнопке "Power Profile" в Quickshell, которая пишет
+  # прямо в /sys/.../scaling_governor вместо power-profiles-daemon.
+  security.sudo.extraRules = [
+    {
+      users = [ "daen2772" ];
+      commands = [
+        {
+          command = "/run/current-system/sw/bin/cpu-gov-set *";
+          options = [ "NOPASSWD" ];
+        }
+      ];
+    }
+  ];
+
+  # Скрипт переключения CPU governor (используется кнопкой Power Profile в баре).
+  # Устанавливается в systemPackages ниже; sudoers-правило выше разрешает его
+  # без пароля.
+
+
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 
@@ -72,7 +92,26 @@
     wget
     nano
     opencode
-    wine
+
+    # Скрипт переключения CPU governor для кнопки Power Profile (см. выше).
+    (pkgs.writeShellScriptBin "cpu-gov-set" ''
+      set -e
+      gov="$1"
+      if [ "$gov" != "performance" ] && [ "$gov" != "schedutil" ] && [ "$gov" != "ondemand" ] && [ "$gov" != "powersave" ]; then
+        echo "usage: cpu-gov-set <performance|schedutil|ondemand|powersave>" >&2
+        exit 1
+      fi
+      for f in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+        echo "$gov" > "$f"
+      done
+    '')
+
+    # Полная сборка Wine с поддержкой 64-битных префиксов (wine из 32-битной
+    # сборки не может запустить 64-битный клиент Stalcraft/Stalzone).
+    winePackages.stableFull
+
+    # PortProton — графический лаунчер Wine/Proton для Windows-игр.
+    portproton
 
     # GSettings + dconf: needed for the end-4 wallpaper pipeline, which stores
     # the dark/light mode in org.gnome.desktop.interface.color-scheme and
@@ -96,9 +135,15 @@
   # udisks2: needed for udiskie auto-mount of removable disks (USB, NTFS, etc.)
   services.udisks2.enable = true;
 
-  # power-profiles-daemon: backend for the Power Profiles button in the bar
-  # (exposes org.freedesktop.UPower.PowerProfiles over D-Bus).
-  services.power-profiles-daemon.enable = true;
+  # power-profiles-daemon: отключён — конфликтует с cpuFreqGovernor="performance"
+  # (оба управляют губернатором CPU). Для стабильного performance в играх
+  # оставляем только cpuFreqGovernor.
+  # services.power-profiles-daemon.enable = true;
+
+  # CPU frequency governor = performance (для игр): intel_cpufreq (intel_pstate
+  # passive) поддерживает performance штатно через cpupower. Заметно плавнее
+  # FPS в Stalcraft, чем дефолтный schedutil.
+  powerManagement.cpuFreqGovernor = "performance";
 
   # Fish shell (login shell for daen2772)
   programs.fish.enable = true;
@@ -110,6 +155,15 @@
   programs.fish.loginShellInit = ''
     # Запускаем Hyprland только на tty1 (логин-шелл при загрузке).
     if test (tty) = /dev/tty1
+      # Помечаем сессию как графическую: включает графические сервисы user-сессии
+      # (xdg-desktop-portal с gtk-бэкендом, flatpak-session-helper и т.д.), которые
+      # зависят от graphical-session.target. Без этого flatpak-приложения (например
+      # PortProton) не получают тёмную тему и настройки хоста через портал.
+      #
+      # Сам graphical-session.target стартовать вручную нельзя (RefuseManualStart),
+      # поэтому запускаем nixos-fake-graphical-session.target — он через BindsTo
+      # подтягивает настоящий таргет, и портал стартует автоматически.
+      systemctl --user start nixos-fake-graphical-session.target
       exec Hyprland
     end
   '';

@@ -1,6 +1,6 @@
 import QtQuick
 import Quickshell
-import Quickshell.Services.UPower
+import Quickshell.Io
 import qs
 import qs.services
 import qs.modules.common
@@ -8,32 +8,49 @@ import qs.modules.common.functions
 import qs.modules.common.widgets
 
 QuickToggleModel {
+    id: root
+
     name: Translation.tr("Power Profile")
-    toggled: PowerProfiles.profile !== PowerProfile.Balanced
-    icon: switch(PowerProfiles.profile) {
-        case PowerProfile.PowerSaver: return "energy_savings_leaf"
-        case PowerProfile.Balanced: return "airwave"
-        case PowerProfile.Performance: return "local_fire_department"
+
+    // Текущий CPU governor (performance / schedutil / ...).
+    property string gov: "schedutil"
+    readonly property bool isPerformance: gov === "performance"
+
+    toggled: isPerformance
+    icon: isPerformance ? "local_fire_department" : "airwave"
+    statusText: isPerformance ? Translation.tr("Performance") : Translation.tr("Balanced")
+
+    // Читаем актуальный governor через sudo? Нет — читаем файл напрямую (доступно всем).
+    function refresh() {
+        govReader.running = false;
+        govReader.running = true;
     }
-    statusText: switch(PowerProfiles.profile) {
-        case PowerProfile.PowerSaver: return "Power Saver"
-        case PowerProfile.Balanced: return "Balanced"
-        case PowerProfile.Performance: return "Performance"
-    }
-    
+
     mainAction: () => {
-        if (PowerProfiles.hasPerformanceProfile) {
-            switch(PowerProfiles.profile) {
-                case PowerProfile.PowerSaver: PowerProfiles.profile = PowerProfile.Balanced
-                break;
-                case PowerProfile.Balanced: PowerProfiles.profile = PowerProfile.Performance
-                break;
-                case PowerProfile.Performance: PowerProfiles.profile = PowerProfile.PowerSaver
-                break;
+        const next = isPerformance ? "schedutil" : "performance";
+        // sudoers-правило разрешает daen2772 запускать cpu-gov-set без пароля.
+        Quickshell.execDetached(["sudo", "-n", "cpu-gov-set", next]);
+        root.gov = next;
+    }
+
+    tooltipText: Translation.tr("Click to toggle CPU governor (Performance / Balanced). Requires the cpu-gov-set sudoers rule.")
+
+    Process {
+        id: govReader
+        command: ["bash", "-c", "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const out = text.trim();
+                if (out) root.gov = out;
             }
-        } else {
-            PowerProfiles.profile = PowerProfiles.profile == PowerProfile.Balanced ? PowerProfile.PowerSaver : PowerProfile.Balanced
         }
     }
-    tooltipText: Translation.tr("Click to cycle through power profiles")
+
+    Timer {
+        interval: 3000
+        repeat: true
+        running: true
+        onTriggered: root.refresh()
+    }
 }

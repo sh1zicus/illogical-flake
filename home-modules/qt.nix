@@ -81,7 +81,7 @@ EOF
                 --set QT_QPA_PLATFORMTHEME "kde" \
                 --prefix PATH : "${pythonEnv}/bin" \
                 --set ILLOGICAL_IMPULSE_VIRTUAL_ENV "$out/venv" \
-                --prefix XDG_DATA_DIRS : "\$HOME/.local/share:\$HOME/.nix-profile/share:/etc/profiles/per-user/\$USER/share:/nix/var/nix/profiles/default/share:/run/current-system/sw/share"
+                --prefix XDG_DATA_DIRS : "\$HOME/.local/share:\$HOME/.nix-profile/share:/etc/profiles/per-user/\$USER/share:/nix/var/nix/profiles/default/share:/run/current-system/sw/share:/var/lib/flatpak/exports/share"
             fi
           done
         '';
