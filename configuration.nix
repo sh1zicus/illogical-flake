@@ -93,8 +93,22 @@
   # Flatpak: portable sandboxed apps from Flathub.
   services.flatpak.enable = false;
 
+  # udisks2: needed for udiskie auto-mount of removable disks (USB, NTFS, etc.)
+  services.udisks2.enable = true;
+
   # Fish shell (login shell for daen2772)
   programs.fish.enable = true;
+
+  # Автологин на tty1: после загрузки пользователь сразу попадает в fish,
+  # который вызывает Hyprland (см. loginShellInit ниже).
+  services.getty.autologinUser = "daen2772";
+
+  programs.fish.loginShellInit = ''
+    # Запускаем Hyprland только на tty1 (логин-шелл при загрузке).
+    if test (tty) = /dev/tty1
+      exec Hyprland
+    end
+  '';
 
   # Enable the OpenSSH daemon.
   # services.openssh.enable = true;
