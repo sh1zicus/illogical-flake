@@ -113,9 +113,6 @@ in
       # Themes and icons
       adw-gtk3
       customPkgs.illogical-impulse-oneui4-icons
-
-      # TUI/CLI блокировки серверов Stalzone/Stalcraft (nftables/iptables; root)
-      customPkgs.stalzone-server-blocker
       papirus-icon-theme  # Primary icon theme
       adwaita-icon-theme  # GNOME fallback icons
       hicolor-icon-theme  # Base icon theme (required by most themes)

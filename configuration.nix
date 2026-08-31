@@ -4,16 +4,15 @@
 
 { config, pkgs, ... }:
 
-let
-  # Локальные пакеты из ./pkgs (см. pkgs/default.nix).
-  customPkgs = import ./pkgs { inherit pkgs; };
-in
 {
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
       ./zapret2-discord.nix
       ./warp.nix
+      # Чистый NixOS-модуль блокировки серверов Stalzone/Stalcraft
+      # (замена sz-server-blocker; настройка декларативно через NixOS).
+      ./stalzone-blocker.nix
     ];
 
   # Use the GRUB 2 boot loader.
@@ -124,25 +123,6 @@ in
     dconf
   ];
 
-  # Declarative systemd unit для stalzone-server-blocker (вместо того, чтобы
-  # инструмент писал unit в read-only /etc/systemd/system на NixOS).
-  # Зеркалит то, что делает сам инструмент с apply_on_boot: применяет
-  # блокировку при загрузке, снимает при выключении.
-  systemd.services.stalzone-server-blocker = {
-    description = "Stalzone server blocker";
-    after = [ "network-online.target" ];
-    wants = [ "network-online.target" ];
-    wantedBy = [ "multi-user.target" ];
-    # Инструмент вызывает nft/iptables по PATH — добавляем их в окружение юнита.
-    path = with pkgs; [ nftables iptables ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      ExecStart = "${customPkgs.stalzone-server-blocker}/bin/stalzone-server-blocker apply";
-      ExecStop = "${customPkgs.stalzone-server-blocker}/bin/stalzone-server-blocker clear";
-    };
-  };
-
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
@@ -238,4 +218,14 @@ in
     nerd-fonts.ubuntu
     nerd-fonts.jetbrains-mono
   ];
+
+  # Динамическая блокировка серверов Stalzone/Stalcraft (московские пулы).
+  # Список IP тянется из API при каждой загрузке и периодически (см.
+  # stalzone-blocker.nix). login обязателен, но любое значение даёт полный
+  # общий список пулов — замени на свой логин при желании.
+  services.stalzone-blocker = {
+    enable = true;
+    login = "nixos";
+    pools = [ "MSK1" "MSK2" ];
+  };
 }
