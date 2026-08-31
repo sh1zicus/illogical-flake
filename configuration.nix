@@ -96,6 +96,10 @@
   # udisks2: needed for udiskie auto-mount of removable disks (USB, NTFS, etc.)
   services.udisks2.enable = true;
 
+  # power-profiles-daemon: backend for the Power Profiles button in the bar
+  # (exposes org.freedesktop.UPower.PowerProfiles over D-Bus).
+  services.power-profiles-daemon.enable = true;
+
   # Fish shell (login shell for daen2772)
   programs.fish.enable = true;
 
