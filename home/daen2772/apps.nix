@@ -10,6 +10,17 @@
   programs.zen-browser = {
     enable = true;
     setAsDefaultBrowser = true;
+
+    # Расширения, force-install с addons.mozilla.org (последние версии).
+    policies.ExtensionSettings = let
+      mkExtensionSettings = builtins.mapAttrs (_: slug: {
+        install_url = "https://addons.mozilla.org/firefox/downloads/latest/${slug}/latest.xpi";
+        installation_mode = "force_installed";
+      });
+    in mkExtensionSettings {
+      "uBlock0@raymondhill.net" = "ublock-origin";
+      "addon@darkreader.org" = "darkreader";
+    };
     profiles.default = {
       id = 0;
       name = "default";
