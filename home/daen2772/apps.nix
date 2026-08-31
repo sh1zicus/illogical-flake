@@ -6,6 +6,10 @@
     bottles
   ];
 
+  # udiskie: автоматическое монтирование дисков (USB, NTFS) в пользовательской сессии.
+  services.udiskie.enable = true;
+  services.udiskie.automount = true;
+
   # Zen Browser (Firefox-форк) — основной браузер.
   programs.zen-browser = {
     enable = true;
