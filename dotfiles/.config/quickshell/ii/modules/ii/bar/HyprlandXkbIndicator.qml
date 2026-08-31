@@ -11,7 +11,7 @@ Loader {
     visible: active
 
     function abbreviateLayoutCode(fullCode) {
-        return fullCode.split(' ')[0].slice(0, 4);
+        return fullCode.split(' ')[0].slice(0, 2);
     }
 
     sourceComponent: Item {
