@@ -70,6 +70,7 @@ in
       fuzzel
       matugen
       steam
+      vesktop
       mpv
       mpvpaper
       swappy
