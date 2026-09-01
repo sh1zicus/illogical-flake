@@ -26,6 +26,12 @@ in
       XCURSOR_SIZE = "24";                       # Cursor size
     };
 
+    # X11 cursor settings for XWayland applications (Steam, Wine, etc.)
+    xresources.properties = {
+      "Xcursor.theme" = "Bibata-Modern-Classic";
+      "Xcursor.size" = 24;
+    };
+
     # Qt platform theme integration (kde) + Darkly widget style from upstream
     home.packages = [
       pkgs.kdePackages.plasma-integration  # Provides the "kde" platform theme plugin

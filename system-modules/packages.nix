@@ -12,6 +12,7 @@
     wget
     nano
     opencode
+    ncdu
 
     # Скрипт переключения CPU governor для кнопки Power Profile (см. users.nix).
     (pkgs.writeShellScriptBin "cpu-gov-set" ''
