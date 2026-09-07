@@ -45,6 +45,13 @@ hl.window_rule({match = {title = "^(illogical-impulse Settings)$" },         flo
 hl.window_rule({match = {title = ".*Shell conflicts.*" },                    float = true})
 hl.window_rule({match = {class = "org.freedesktop.impl.portal.desktop.kde" }, float = true})
 hl.window_rule({match = {class = "org.freedesktop.impl.portal.desktop.kde" }, size = {"(monitor_w*0.60)", "(monitor_h*0.65)"} })
+-- GTK portal file chooser (xdg-desktop-portal-gtk). Used by Firefox/Zen and
+-- other GTK apps. Compact, top-anchored under the quickshell bar, square top
+-- corners so it merges with the panel (rounding=0, move y = bar height 40+23).
+hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               float = true})
+hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               size = {"(monitor_w*0.42)", "(monitor_h*0.5)"} })
+hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               move = {"(monitor_w*0.5-window_w*0.5)", "(0.058*monitor_h)"} })
+hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               rounding = 0 })
 hl.window_rule({match = {class = "^(Zotero)$" },                             float = true})
 hl.window_rule({match = {class = "^(Zotero)$" },                             size = {"(monitor_w*0.45)", "(monitor_h*0.45)"} })
 
