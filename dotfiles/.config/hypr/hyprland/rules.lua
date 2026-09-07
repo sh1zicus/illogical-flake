@@ -52,8 +52,6 @@ hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               flo
 hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               size = {"(monitor_w*0.55)", "(monitor_h*0.52)"} })
 hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               move = {"(monitor_w*0.5-window_w*0.5)", "(0.035*monitor_h)"} })
 hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               rounding = 18 })
-hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               no_move = true })
-hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               no_resize = true })
 hl.window_rule({match = {class = "^(Zotero)$" },                             float = true})
 hl.window_rule({match = {class = "^(Zotero)$" },                             size = {"(monitor_w*0.45)", "(monitor_h*0.45)"} })
 
