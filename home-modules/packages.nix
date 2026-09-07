@@ -5,9 +5,6 @@ inputs:
 let
   cfg = config.programs.illogical-impulse;
 
-  # Custom packages
-  customPkgs = import ../pkgs { inherit pkgs; };
-
   # Python environment for quickshell wallpaper analysis
   pythonEnv = pkgs.python3.withPackages (ps: [
     ps.build
@@ -116,7 +113,6 @@ in
 
       # Themes and icons
       adw-gtk3
-      customPkgs.illogical-impulse-oneui4-icons
       papirus-icon-theme  # Primary icon theme
       adwaita-icon-theme  # GNOME fallback icons
       hicolor-icon-theme  # Base icon theme (required by most themes)

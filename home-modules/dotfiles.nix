@@ -9,10 +9,7 @@ let
   # Use dotfiles from flake input
   dotfilesSource = inputs.dotfiles;
 
-  # Custom packages
-  customPkgs = import ../pkgs { inherit pkgs; };
-  oneUIIconsPath = "${customPkgs.illogical-impulse-oneui4-icons}/share/icons";
-in
+  in
 {
   options.programs.illogical-impulse.dotfiles = {
     fish.enable = mkEnableOption "Use the Illogical Impulse fish config" // { default = true; };
@@ -86,8 +83,9 @@ in
       '';
     };
 
-    # OneUI icons are copied and modified by the activation script below
-    # (cannot use home.file symlinks because we need to modify index.theme)
+    # Breeze icons are shipped via kdePackages.breeze-icons (see packages.nix)
+    # so they're available to both Qt/KDE (Dolphin) and GTK apps.
+    # Papirus themes are handled by activation script (to add inode-directory symlinks).
 
     # Symlink standard icon themes
     # Note: Papirus themes are handled by activation script (to add inode-directory symlinks)
@@ -95,21 +93,20 @@ in
     # hicolor and Papirus are managed by the activation script below, not as symlinks
 
     # Configure icon theme for GTK and Qt applications
-    # Use OneUI-dark which will fall back to Papirus-Dark via inheritance
+    # Use Breeze-Dark → same icon set as Dolphin/KDE apps (breeze icons
+    # ship via kdePackages.breeze-icons, so both GTK and Qt see the same icons).
     gtk = {
       enable = mkDefault true;
       iconTheme = {
-        name = mkDefault "OneUI-dark";
-        package = mkDefault (let
-          customPkgs = import ../pkgs { inherit pkgs; };
-        in customPkgs.illogical-impulse-oneui4-icons);
+        name = mkDefault "breeze-dark";
+        package = mkDefault pkgs.kdePackages.breeze-icons;
       };
     };
 
     # Set icon theme via dconf for GNOME/GTK apps
     dconf.settings = {
       "org/gnome/desktop/interface" = {
-        icon-theme = mkDefault "OneUI-dark";
+        icon-theme = mkDefault "breeze-dark";
         cursor-theme = mkDefault "Bibata-Modern-Classic";
         cursor-size = mkDefault 24;
         # Base GTK theme that matugen's gtk.css layers colors on top of
@@ -273,31 +270,14 @@ in
         echo "Copied Illogical Impulse .local/share files to ~/.local/share"
       fi
 
-      # Copy OneUI icon themes and modify index.theme to inherit from Papirus and Adwaita
-      for theme in OneUI-dark OneUI-light; do
-        # Use Papirus for primary fallback (has inode-directory), then Adwaita, then hicolor
-        papirus_theme="Papirus-Dark"
-        if [ "$theme" = "OneUI-light" ]; then
-          papirus_theme="Papirus-Light"
-        fi
-        fallback_theme="$papirus_theme,Adwaita"
+      # Breeze icons are used for both Qt/KDE (Dolphin) and GTK apps; they ship
+      # via kdePackages.breeze-icons so no copying of index.theme is needed.
 
-        # Remove existing OneUI theme directory
-        if [ -e "$targetLocalShare/icons/$theme" ] || [ -L "$targetLocalShare/icons/$theme" ]; then
-          $DRY_RUN_CMD rm -rf "$targetLocalShare/icons/$theme"
-        fi
-
-        # Copy OneUI theme from nix store
-        oneui_source="${oneUIIconsPath}/$theme"
-        if [ -d "$oneui_source" ]; then
-          $DRY_RUN_CMD cp -r "$oneui_source" "$targetLocalShare/icons/$theme"
-          $DRY_RUN_CMD chmod -R u+w "$targetLocalShare/icons/$theme"
-
-          # Update the Inherits line to include Papirus and Adwaita fallbacks
-          if [ -f "$targetLocalShare/icons/$theme/index.theme" ]; then
-            $DRY_RUN_CMD sed -i "s/^Inherits=.*/Inherits=$fallback_theme,hicolor/" "$targetLocalShare/icons/$theme/index.theme"
-            echo "Copied and updated $theme to inherit from $fallback_theme"
-          fi
+      # Remove stale OneUI icon themes from previous setups
+      for stale_theme in OneUI OneUI-dark OneUI-light; do
+        if [ -e "$targetLocalShare/icons/$stale_theme" ] || [ -L "$targetLocalShare/icons/$stale_theme" ]; then
+          $DRY_RUN_CMD rm -rf "$targetLocalShare/icons/$stale_theme"
+          echo "Removed stale $stale_theme icon theme"
         fi
       done
 
