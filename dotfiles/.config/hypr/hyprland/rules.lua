@@ -44,7 +44,9 @@ hl.window_rule({match = {title = ".*Welcome" },                              flo
 hl.window_rule({match = {title = "^(illogical-impulse Settings)$" },         float = true})
 hl.window_rule({match = {title = ".*Shell conflicts.*" },                    float = true})
 hl.window_rule({match = {class = "org.freedesktop.impl.portal.desktop.kde" }, float = true})
-hl.window_rule({match = {class = "org.freedesktop.impl.portal.desktop.kde" }, size = {"(monitor_w*0.60)", "(monitor_h*0.65)"} })
+hl.window_rule({match = {class = "org.freedesktop.impl.portal.desktop.kde" }, size = {"(monitor_w*0.55)", "(monitor_h*0.52)"} })
+hl.window_rule({match = {class = "org.freedesktop.impl.portal.desktop.kde" }, move = {"(monitor_w*0.5-window_w*0.5)", "(0.035*monitor_h)"} })
+hl.window_rule({match = {class = "org.freedesktop.impl.portal.desktop.kde" }, rounding = 18 })
 -- GTK portal file chooser (xdg-desktop-portal-gtk). Used by Firefox/Zen and
 -- other GTK apps. Compact, top-anchored under the quickshell bar, square top
 -- corners so it merges with the panel (rounding=0, move y = bar height 40+23).
