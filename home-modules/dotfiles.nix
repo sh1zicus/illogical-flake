@@ -92,6 +92,23 @@ let
     home.file.".local/share/icons/Adwaita".source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita";
     # hicolor and Papirus are managed by the activation script below, not as symlinks
 
+    # Bookmarks for the GTK file chooser (both GTK3 and GTK4 native pickers).
+    # Format: file:///path Label (one per line).
+    home.file.".config/gtk-3.0/bookmarks".text = ''
+      file://${config.home.homeDirectory}/Desktop Desktop
+      file://${config.home.homeDirectory}/Documents Documents
+      file://${config.home.homeDirectory}/Downloads Downloads
+      file://${config.home.homeDirectory}/Pictures Pictures
+      file://${config.home.homeDirectory}/Videos Videos
+    '';
+    home.file.".config/gtk-4.0/bookmarks".text = ''
+      file://${config.home.homeDirectory}/Desktop Desktop
+      file://${config.home.homeDirectory}/Documents Documents
+      file://${config.home.homeDirectory}/Downloads Downloads
+      file://${config.home.homeDirectory}/Pictures Pictures
+      file://${config.home.homeDirectory}/Videos Videos
+    '';
+
     # Configure icon theme for GTK and Qt applications
     # Use Breeze-Dark → same icon set as Dolphin/KDE apps (breeze icons
     # ship via kdePackages.breeze-icons, so both GTK and Qt see the same icons).
