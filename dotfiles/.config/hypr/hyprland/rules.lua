@@ -50,7 +50,7 @@ hl.window_rule({match = {class = "org.freedesktop.impl.portal.desktop.kde" }, si
 -- corners so it merges with the panel (rounding=0, move y = bar height 40+23).
 hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               float = true})
 hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               size = {"(monitor_w*0.55)", "(monitor_h*0.52)"} })
-hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               move = {"(monitor_w*0.5-window_w*0.5)", "(0.025*monitor_h)"} })
+hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               move = {"(monitor_w*0.5-window_w*0.5)", "(0.035*monitor_h)"} })
 hl.window_rule({match = {class = "^xdg-desktop-portal-gtk$" },               rounding = 0 })
 hl.window_rule({match = {class = "^(Zotero)$" },                             float = true})
 hl.window_rule({match = {class = "^(Zotero)$" },                             size = {"(monitor_w*0.45)", "(monitor_h*0.45)"} })
