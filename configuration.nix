@@ -29,6 +29,13 @@
       ./system-modules/network/stalzone-blocker.nix
     ];
 
+  # Игровой диск (бывший CachyOS) — отформатирован как btrfs, метка "games".
+  fileSystems."/games" =
+    { device = "/dev/disk/by-uuid/ea830442-4d52-4b63-a73b-de53126d6c6d";
+      fsType = "btrfs";
+      options = [ "noatime" "ssd" "discard=async" "space_cache=v2" "compress=zstd:1" "commit=120" ];
+    };
+
   # Динамическая блокировка серверов Stalzone/Stalcraft (московские пулы).
   # Список IP тянется из API при каждой загрузке и периодически (см.
   # stalzone-blocker.nix). login обязателен, но любое значение даёт полный
