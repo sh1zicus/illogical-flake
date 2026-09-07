@@ -104,6 +104,9 @@ in
       wayland-protocols
       wl-clipboard
 
+      # Gaming
+      gamemode
+
       # Development libraries
       libsoup_3
       libportal-gtk4

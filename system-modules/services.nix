@@ -21,6 +21,25 @@
 
   hardware.graphics.enable32Bit = true;
 
+  # GameMode: поднимает приоритет игры, переводит CPU в performance,
+  # ускоряет IO планировщик и шейдерный кэш во время запуска игры.
+  programs.gamemode.enable = true;
+  programs.gamemode.settings = {
+    general = {
+      desiredgov = "performance";
+      softrealtime = "auto";
+      renice = 10;
+    };
+    gpu = {
+      apply_gpu_optimisations = "accept-responsibility";  # no-op на RADV/Mesa
+      gpu_device = 0;
+    };
+    custom = {
+      start = "";
+      end = "";
+    };
+  };
+
   programs.hyprland.enable = true;
   programs.firefox.enable = true;
   services.geoclue2.enable = true;
