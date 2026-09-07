@@ -283,7 +283,6 @@
   "Code saved to file": "Код збережений у файл",
   "Online models disallowed\n\nControlled by `policies.ai` config option": "Онлайн-моделі заборонено\n\nКерується параметром конфігурації `policies.ai`",
   "Scroll to change volume": "Прокрутіть, щоб змінити гучність",
-  "Elements": "Елементи",
   "%1   •   %2 tasks": "%1   •   %2 завдань",
   "Download complete": "Завантаження завершено",
   "Please charge!\nAutomatic suspend triggers at %1": "Будь ласка, зарядіть! \nАвтоматичне призупинення спрацьовування при %1",

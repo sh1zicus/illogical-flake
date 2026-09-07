@@ -480,7 +480,6 @@
   "Overlay: General": "Overlay: Geral",
   "Sound output": "Saída de som",
   "Conflicts with the shell's system tray implementation": "Conflita com a implementação de bandeja do sistema do shell",
-  "Elements": "Elementos",
   "Audio input": "Entrada de áudio",
   "Rows": "Linhas",
   "No API key\nSet it with /key YOUR_API_KEY": "Sem chave API\nDefina com /key SUA_CHAVE_API",
