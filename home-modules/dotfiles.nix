@@ -120,6 +120,25 @@ let
       };
     };
 
+    # XDG user dirs (Desktop, Documents, Downloads, ...).
+    # Firefox/Chromium и все портальные (GTK через xdg-desktop-portal-gtk)
+    # пикеры файлов показывают закладки от сюда, а не из gtk bookmarks.
+    xdg = {
+      enable = mkDefault true;
+      userDirs = {
+        enable = mkDefault true;
+        createDirectories = mkDefault true;
+        desktop = mkDefault "$HOME/Desktop";
+        documents = mkDefault "$HOME/Documents";
+        download = mkDefault "$HOME/Downloads";
+        music = mkDefault "$HOME/Music";
+        pictures = mkDefault "$HOME/Pictures";
+        publicShare = mkDefault "$HOME/Public";
+        templates = mkDefault "$HOME/Templates";
+        videos = mkDefault "$HOME/Videos";
+      };
+    };
+
     # Set icon theme via dconf for GNOME/GTK apps
     dconf.settings = {
       "org/gnome/desktop/interface" = {
