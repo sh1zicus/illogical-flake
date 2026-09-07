@@ -22,7 +22,7 @@
       # поэтому запускаем nixos-fake-graphical-session.target — он через BindsTo
       # подтягивает настоящий таргет, и портал стартует автоматически.
       systemctl --user start nixos-fake-graphical-session.target
-      exec Hyprland
+      exec start-hyprland
     end
   '';
 }
