@@ -41,6 +41,5 @@
   };
 
   programs.hyprland.enable = true;
-  programs.firefox.enable = true;
   services.geoclue2.enable = true;
 }

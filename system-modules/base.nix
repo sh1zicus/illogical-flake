@@ -16,6 +16,9 @@
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+  # Не генерируем индекс-кэш man-страниц (mandb.service) — man не используется.
+  documentation.man.generateCaches = false;
+
   fonts.packages = with pkgs; [
     rubik
     nerd-fonts.ubuntu

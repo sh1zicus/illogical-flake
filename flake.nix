@@ -41,9 +41,15 @@
     portproton-nixos = {
       url = "git+https://github.com/Redm00use/PortProton-NixOS";
     };
+
+    # NixOS Configuration Editor — графическое редактирование NixOS-конфига.
+    nixos-conf-editor = {
+      url = "github:snowfallorg/nixos-conf-editor";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, home-manager, quickshell, nur, dotfiles, portproton-nixos, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, quickshell, nur, dotfiles, portproton-nixos, nixos-conf-editor, ... }@inputs:
     let
       system = "x86_64-linux";
       hostname = "nixos";
@@ -70,6 +76,11 @@
                 gnome-icon-theme = prev.adwaita-icon-theme;
               })
               portproton-nixos.overlays.${system}.default
+              # NixOS Configuration Editor (графический редактор конфигов).
+              (final: prev: {
+                nixos-conf-editor =
+                  nixos-conf-editor.packages.${system}.nixos-conf-editor;
+              })
               # Правка пакаджа PortProton: штатный steam-run не содержит GTK3,
               # из-за чего GUI (yad_gui_pp) не открывается
               # («libgtk-3.so.0: cannot open shared object file»).
