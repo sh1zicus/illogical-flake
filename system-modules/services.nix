@@ -42,4 +42,9 @@
 
   programs.hyprland.enable = true;
   services.geoclue2.enable = true;
+
+  # GPU Screen Recorder: запись экрана с минимальной нагрузкой (VAAPI/AMF).
+  # Модуль создаёт setcap wrapper для gsr-kms-server (cap_sys_admin),
+  # иначе запись монитора падает с "kms server died".
+  programs.gpu-screen-recorder.enable = true;
 }

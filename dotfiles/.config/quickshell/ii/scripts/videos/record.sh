@@ -55,9 +55,9 @@ else
     if [[ $FULLSCREEN_FLAG -eq 1 ]]; then
         notify-send "Starting recording" 'recording_'"$(getdate)"'.mkv' -a 'Recorder' & disown
         if [[ $SOUND_FLAG -eq 1 ]]; then
-            gpu-screen-recorder -w monitor -f 60 -c h264 -cr icq -q 20 -a default_output -o "$RECORDING_DIR/recording_$(getdate).mkv" &
+            gpu-screen-recorder -w screen -k h264 -q very_high -a default_output -o "$RECORDING_DIR/recording_$(getdate).mkv" &
         else
-            gpu-screen-recorder -w monitor -f 60 -c h264 -cr icq -q 20 -o "$RECORDING_DIR/recording_$(getdate).mkv" &
+            gpu-screen-recorder -w screen -k h264 -q very_high -o "$RECORDING_DIR/recording_$(getdate).mkv" &
         fi
         disown
     else
@@ -76,9 +76,9 @@ else
 
         notify-send "Starting recording" 'recording_'"$(getdate)"'.mkv' -a 'Recorder' & disown
         if [[ $SOUND_FLAG -eq 1 ]]; then
-            gpu-screen-recorder -w monitor -f 60 -c h264 -cr icq -q 20 -r "$gsr_region" -a default_output -o "$RECORDING_DIR/recording_$(getdate).mkv" &
+            gpu-screen-recorder -w region -region "$gsr_region" -k h264 -q very_high -a default_output -o "$RECORDING_DIR/recording_$(getdate).mkv" &
         else
-            gpu-screen-recorder -w monitor -f 60 -c h264 -cr icq -q 20 -r "$gsr_region" -o "$RECORDING_DIR/recording_$(getdate).mkv" &
+            gpu-screen-recorder -w region -region "$gsr_region" -k h264 -q very_high -o "$RECORDING_DIR/recording_$(getdate).mkv" &
         fi
         disown
     fi
