@@ -5,7 +5,7 @@
 {
   boot.loader.grub = {
     enable = true;
-    device = "/dev/sdc";
+    device = "/dev/sdb";
     useOSProber = false;
     # Use provided UUIDs instead of blkid probing (required for btrfs subvolumes)
     fsIdentifier = "provided";
