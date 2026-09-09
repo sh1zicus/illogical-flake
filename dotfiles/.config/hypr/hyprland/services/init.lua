@@ -1,1 +1,1 @@
-require("hyprland/services/create_custom_config")
+-- Custom config generation disabled: config is now written directly
