@@ -72,6 +72,7 @@ in
       mpvpaper
       swappy
       wf-recorder
+      gpu-screen-recorder
       hyprshot
       wlogout
 
