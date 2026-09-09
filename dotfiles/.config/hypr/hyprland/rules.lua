@@ -73,7 +73,6 @@ hl.window_rule({match = {title = "^([Pp]icture[-\\s]?[Ii]n[-\\s]?[Pp]icture)(.*)
 hl.window_rule({match = {title = "^([Pp]icture[-\\s]?[Ii]n[-\\s]?[Pp]icture)(.*)$" }, keep_aspect_ratio = true})
 hl.window_rule({match = {title = "^([Pp]icture[-\\s]?[Ii]n[-\\s]?[Pp]icture)(.*)$" }, move = {"(monitor_w*0.73)", "(monitor_h*0.72)"} })
 hl.window_rule({match = {title = "^([Pp]icture[-\\s]?[Ii]n[-\\s]?[Pp]icture)(.*)$" }, size = {"(monitor_w*0.25)", "(monitor_h*0.25)"} })
-hl.window_rule({match = {title = "^([Pp]icture[-\\s]?[Ii]n[-\\s]?[Pp]icture)(.*)$" }, float = true})
 hl.window_rule({match = {title = "^([Pp]icture[-\\s]?[Ii]n[-\\s]?[Pp]icture)(.*)$" }, pin = true})
 
 -- Screen sharing
@@ -131,8 +130,6 @@ hl.layer_rule({ match = { namespace = "sideright[0-9]*" }, blur = true})
 hl.layer_rule({ match = { namespace = "sideright[0-9]*" }, ignore_alpha = 0.6})
 hl.layer_rule({ match = { namespace = "sideleft[0-9]*" }, blur = true})
 hl.layer_rule({ match = { namespace = "sideleft[0-9]*" }, ignore_alpha = 0.6})
-hl.layer_rule({ match = { namespace = "indicator.*" }, blur = true})
-hl.layer_rule({ match = { namespace = "indicator.*" }, ignore_alpha = 0.6})
 hl.layer_rule({ match = { namespace = "osk[0-9]*" }, blur = true})
 hl.layer_rule({ match = { namespace = "osk[0-9]*" }, ignore_alpha = 0.6})
 

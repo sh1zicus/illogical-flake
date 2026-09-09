@@ -1,8 +1,5 @@
 require("hyprland.lib")
 require("hyprland.variables")
-if is_file_exists(HOME .. "/.config/hypr/custom/variables.lua") then
-    require("custom.variables")
-end
 
 local qsScripts = "$HOME/.config/quickshell/$qsConfig/scripts"
 local hyprScripts = "$HOME/.config/hypr/hyprland/scripts"
@@ -285,11 +282,17 @@ for i = 1, 4 do
     hl.bind(keycombos[i], hl.dsp.focus({ workspace = prefix[i] .. "1" }))
 end
 --#/# bind = SUPER, Scroll ↑/↓,, -- Focus left/right
-for i = 1, 4 do
+for i = 1, 2 do
     local key = { "SUPER + mouse_up", "SUPER + mouse_down" }
-    local keycombos = { key[1], key[2], "CTRL + " .. key[1], "CTRL + " .. key[2] }
-    local prefix = { "+", "-", "r+", "r-" }
-    hl.bind(keycombos[i], hl.dsp.focus({ workspace = prefix[i] .. "1" }))
+    local prefix = { "-", "+" }
+    hl.bind(key[i], hl.dsp.focus({ workspace = prefix[i] .. "1" }))
+end
+--#/# bind = CTRL+SUPER, Scroll ↑/↓,, -- Move window to workspace left/right
+for i = 1, 2 do
+    local key = { "SUPER + mouse_up", "SUPER + mouse_down" }
+    local prefix = { "-", "+" }
+    hl.bind("CTRL + " .. key[i], hl.dsp.window.move({ workspace = prefix[i] .. "1" }),
+        { description = "Window: Send to workspace " .. (i == 1 and "left" or "right") })
 end
 --## Special
 hl.bind("SUPER + S", hl.dsp.workspace.toggle_special("special"), { description = "Workspace: Toggle scratchpad" })
@@ -315,20 +318,6 @@ hl.define_submap("virtual-machine", function()
         end
     end, { submap_universal = true })
 end)
-
-
---#!
---# Testing
-hl.bind("SUPER + ALT + F11",
-    hl.dsp.exec_cmd(
-        "bash -c 'RANDOM_IMAGE=$(find ~/Pictures -type f | shuf -n 1); ACTION=$(notify-send \"Test notification with body image\" \"This notification should contain your user account <b>image</b> and <a href=\\\"https://discord.com/app\\\">Discord</a> <b>icon</b>. Oh and here is a random image in your Pictures folder: <img src=\\\"$RANDOM_IMAGE\\\" alt=\\\"Testing image\\\"/>\" -a \"Hyprland\" -p -h \"string:image-path:/var/lib/AccountsService/icons/$USER\" -t 6000 -i \"discord\" -A \"openImage=Profile image\" -A \"action2=Open the random image\" -A \"action3=Useless button\"); [[ $ACTION == *openImage ]] && xdg-open \"/var/lib/AccountsService/icons/$USER\"; [[ $ACTION == *action2 ]] && xdg-open \"$RANDOM_IMAGE\"'")
-) -- # [hidden]
-hl.bind("SUPER + ALT + F12",
-    hl.dsp.exec_cmd(
-        "bash -c 'RANDOM_IMAGE=$(find ~/Pictures -type f | shuf -n 1); ACTION=$(notify-send \"Test notification\" \"This notification should contain a random image in your <b>Pictures</b> folder and <a href=\\\"https://discord.com/app\\\">Discord</a> <b>icon</b>.\n<i>Flick right to dismiss!</i>\" -a \"Discord (fake)\" -p -h \"string:image-path:$RANDOM_IMAGE\" -t 6000 -i \"discord\" -A \"openImage=Profile image\" -A \"action2=Useless button\"); [[ $ACTION == *openImage ]] && xdg-open \"/var/lib/AccountsService/icons/$USER\"'")
-)                                                                                                        -- # [hidden]
-hl.bind("SUPER + ALT + Equal",
-    hl.dsp.exec_cmd("notify-send 'Urgent notification' 'Ah hell no' -u critical -a 'Hyprland keybind'")) -- # [hidden]
 
 --##! Session
 hl.bind("SUPER + L", hl.dsp.exec_cmd("loginctl lock-session"), { description = "Session: Lock" })
