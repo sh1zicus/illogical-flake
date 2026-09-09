@@ -58,6 +58,13 @@ Item {
             }
         },
         {
+            name: "agent",
+            description: Translation.tr("Set OpenCode agent (plan|build)"),
+            execute: args => {
+                Ai.setAgent(args[0]);
+            }
+        },
+        {
             name: "tool",
             description: Translation.tr("Set the tool to use for the model."),
             execute: args => {

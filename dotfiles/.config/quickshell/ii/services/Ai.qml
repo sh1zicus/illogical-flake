@@ -23,6 +23,7 @@ Singleton {
     property Component geminiApiStrategy: GeminiApiStrategy {}
     property Component openaiApiStrategy: OpenAiApiStrategy {}
     property Component mistralApiStrategy: MistralApiStrategy {}
+    property Component opencodeApiStrategy: OpencodeApiStrategy {}
     readonly property string interfaceRole: "interface"
     readonly property string apiKeyEnvVarName: "API_KEY"
 
@@ -233,6 +234,11 @@ Singleton {
             ],
             "search": [],
             "none": [],
+        },
+        "opencode": {
+            "functions": [],
+            "search": [],
+            "none": [],
         }
     }
     property list<var> availableTools: Object.keys(root.tools[models[currentModelId]?.api_format])
@@ -294,6 +300,16 @@ Singleton {
             "key_get_description": Translation.tr("**Instructions**: Log into Mistral account, go to Keys on the sidebar, click Create new key"),
             "api_format": "mistral",
         }),
+        "opencode-big-pickle": aiModelComponent.createObject(this, {
+            "name": "OpenCode",
+            "icon": "opencode-symbolic",
+            "description": Translation.tr("Local | OpenCode's built-in agent with the Big Pickle model color. Runs entirely through the `opencode` CLI on this machine — no API key needed."),
+            "homepage": "https://opencode.ai",
+            "endpoint": "opencode://local",
+            "model": "opencode/big-pickle",
+            "requires_key": false,
+            "api_format": "opencode",
+        }),
     }
     property var modelList: Object.keys(root.models)
     property var currentModelId: Persistent.states?.ai?.model || modelList[0]
@@ -302,6 +318,7 @@ Singleton {
         "openai": openaiApiStrategy.createObject(this),
         "gemini": geminiApiStrategy.createObject(this),
         "mistral": mistralApiStrategy.createObject(this),
+        "opencode": opencodeApiStrategy.createObject(this),
     }
     property ApiStrategy currentApiStrategy: apiStrategies[models[currentModelId]?.api_format || "openai"]
 
@@ -489,7 +506,7 @@ Singleton {
         if (modelList.indexOf(modelId) !== -1) {
             const model = models[modelId]
             // See if policy prevents online models
-            if (Config.options.policies.ai === 2 && !model.endpoint.includes("localhost")) {
+            if (Config.options.policies.ai === 2 && model.api_format !== "opencode" && !model.endpoint.includes("localhost")) {
                 root.addMessage(
                     Translation.tr("Online models disallowed\n\nControlled by `policies.ai` config option"),
                     root.interfaceRole
@@ -532,6 +549,26 @@ Singleton {
         root.addMessage(Translation.tr("Temperature set to %1").arg(value), Ai.interfaceRole);
     }
 
+    function setAgent(agent) {
+        const model = models[currentModelId];
+        if (model?.api_format !== "opencode") {
+            root.addMessage(Translation.tr("Agent selection is only available for the OpenCode model"), Ai.interfaceRole);
+            return;
+        }
+        if (!agent || agent.length === 0) {
+            root.addMessage(Translation.tr("Agent: %1\n\nUsage: %2agent plan|build")
+                .arg(Persistent.states.ai.agent || "plan").arg("/"), Ai.interfaceRole);
+            return;
+        }
+        const normalized = agent.toLowerCase();
+        if (normalized !== "plan" && normalized !== "build") {
+            root.addMessage(Translation.tr("Invalid agent. Supported: plan, build"), Ai.interfaceRole);
+            return;
+        }
+        Persistent.states.ai.agent = normalized;
+        root.addMessage(Translation.tr("OpenCode agent set to %1").arg(normalized), Ai.interfaceRole);
+    }
+
     function setApiKey(key) {
         const model = models[currentModelId];
         if (!model.requires_key) {
@@ -571,6 +608,8 @@ Singleton {
         root.tokenCount.input = -1;
         root.tokenCount.output = -1;
         root.tokenCount.total = -1;
+        // Start a fresh OpenCode session on /clear
+        if (root.currentApiStrategy?.resetSession) root.currentApiStrategy.resetSession();
     }
 
     FileView {
