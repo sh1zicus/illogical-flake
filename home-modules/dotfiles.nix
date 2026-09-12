@@ -142,8 +142,9 @@ let
         download = mkDefault "$HOME/Downloads";
         music = mkDefault "$HOME/Music";
         pictures = mkDefault "$HOME/Pictures";
-        publicShare = mkDefault "$HOME/Public";
-        templates = mkDefault "$HOME/Templates";
+        projects = mkDefault null;
+        publicShare = mkDefault "$HOME/.Public";
+        templates = mkDefault "$HOME/.Templates";
         videos = mkDefault "$HOME/Videos";
       };
     };
