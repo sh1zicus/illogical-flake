@@ -66,7 +66,6 @@ in
       foot
       fuzzel
       matugen
-      steam
       vesktop
       mpv
       mpvpaper

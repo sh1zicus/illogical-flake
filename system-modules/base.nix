@@ -16,6 +16,15 @@
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+  # Автоматическая уборка /nix: GC раз в неделю (старше 7 дней), оптимизация
+  # стора (hardlinks дедупликация) — не даём диску забиваться.
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 7d";
+  };
+  nix.optimise.automatic = true;
+
   # Не генерируем индекс-кэш man-страниц (mandb.service) — man не используется.
   documentation.man.cache.enable = false;
 
