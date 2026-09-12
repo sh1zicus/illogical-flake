@@ -74,6 +74,7 @@ in
       wf-recorder
       hyprshot
       wlogout
+      transmission_4-gtk
 
       # System utilities
       xdg-user-dirs
@@ -126,6 +127,7 @@ in
       # Minimal Qt/KDE packages (only what's needed for functionality)
       gnome-keyring  # Keyring support
       kdePackages.dolphin  # KDE file manager
+      kdePackages.ark      # Архиватор (KF6 KPart для Dolphin)
       kdePackages.bluedevil  # Bluetooth management (for kcm_bluetooth)
       kdePackages.plasma-nm  # Network management (for kcm_networkmanagement)
       kdePackages.polkit-kde-agent-1  # Polkit authentication agent

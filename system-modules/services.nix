@@ -19,7 +19,13 @@
   # FPS в Stalcraft, чем дефолтный schedutil.
   powerManagement.cpuFreqGovernor = "performance";
 
-  hardware.graphics.enable32Bit = true;
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+    extraPackages = with pkgs; [
+      vulkan-tools
+    ];
+  };
 
   # GameMode: поднимает приоритет игры, переводит CPU в performance,
   # ускоряет IO планировщик и шейдерный кэш во время запуска игры.

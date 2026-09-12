@@ -247,6 +247,42 @@ ContentPage {
                     Config.options.lock.blur.extraZoom = value / 100;
                 }
             }
+
+            ConfigSpinBox {
+                icon: "blur_on"
+                text: Translation.tr("Blur radius")
+                value: Config.options.lock.blur.radius
+                from: 0
+                to: 300
+                stepSize: 5
+                onValueChanged: {
+                    Config.options.lock.blur.radius = value;
+                }
+            }
+        }
+    }
+
+    ContentSection {
+        icon: "keyboard_alt"
+        title: Translation.tr("On-screen keyboard")
+
+        MaterialTextArea {
+            Layout.fillWidth: true
+            placeholderText: Translation.tr("Layout (e.g. Russian)")
+            text: Config.options.osk.layout
+            wrapMode: TextEdit.Wrap
+            onTextChanged: {
+                Config.options.osk.layout = text;
+            }
+        }
+
+        ConfigSwitch {
+            buttonIcon: "power"
+            text: Translation.tr("Pinned on startup")
+            checked: Config.options.osk.pinnedOnStartup
+            onCheckedChanged: {
+                Config.options.osk.pinnedOnStartup = checked;
+            }
         }
     }
 
@@ -288,6 +324,74 @@ ContentPage {
                 onTextChanged: {
                     Config.options.notifications.forceMonitor.name = text;
                 }
+            }
+        }
+    }
+
+    ContentSection {
+        icon: "speed"
+        title: Translation.tr("Scrolling")
+
+        ConfigSwitch {
+            buttonIcon: "touchpad"
+            text: Translation.tr("Faster touchpad scroll")
+            checked: Config.options.interactions.scrolling.fasterTouchpadScroll
+            onCheckedChanged: {
+                Config.options.interactions.scrolling.fasterTouchpadScroll = checked;
+            }
+            StyledToolTip {
+                text: Translation.tr("Enable faster scrolling with touchpad")
+            }
+        }
+
+        ConfigSpinBox {
+            icon: "mouse"
+            text: Translation.tr("Mouse scroll delta threshold")
+            value: Config.options.interactions.scrolling.mouseScrollDeltaThreshold
+            from: 0
+            to: 1000
+            stepSize: 10
+            onValueChanged: {
+                Config.options.interactions.scrolling.mouseScrollDeltaThreshold = value;
+            }
+            StyledToolTip {
+                text: Translation.tr("Delta >= this then it gets detected as mouse scroll rather than touchpad")
+            }
+        }
+
+        ConfigSpinBox {
+            icon: "mouse"
+            text: Translation.tr("Mouse scroll factor")
+            value: Config.options.interactions.scrolling.mouseScrollFactor
+            from: 1
+            to: 1000
+            stepSize: 10
+            onValueChanged: {
+                Config.options.interactions.scrolling.mouseScrollFactor = value;
+            }
+        }
+
+        ConfigSpinBox {
+            icon: "touchpad"
+            text: Translation.tr("Touchpad scroll factor")
+            value: Config.options.interactions.scrolling.touchpadScrollFactor
+            from: 1
+            to: 1000
+            stepSize: 10
+            onValueChanged: {
+                Config.options.interactions.scrolling.touchpadScrollFactor = value;
+            }
+        }
+
+        ConfigSwitch {
+            buttonIcon: "pixel"
+            text: Translation.tr("Dead pixel workaround")
+            checked: Config.options.interactions.deadPixelWorkaround.enable
+            onCheckedChanged: {
+                Config.options.interactions.deadPixelWorkaround.enable = checked;
+            }
+            StyledToolTip {
+                text: Translation.tr("Hyprland leaves out 1 pixel on the right for interactions")
             }
         }
     }

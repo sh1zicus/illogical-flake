@@ -200,6 +200,31 @@ ContentPage {
                     Config.options.search.engineBaseUrl = text;
                 }
             }
+
+            ConfigSpinBox {
+                icon: "av_timer"
+                text: Translation.tr("Non-app result delay (ms)")
+                value: Config.options.search.nonAppResultDelay
+                from: 0
+                to: 500
+                stepSize: 10
+                onValueChanged: {
+                    Config.options.search.nonAppResultDelay = value;
+                }
+                StyledToolTip {
+                    text: Translation.tr("Prevents lagging when typing")
+                }
+            }
+
+            MaterialTextArea {
+                Layout.fillWidth: true
+                placeholderText: Translation.tr("Excluded sites (comma separated)")
+                text: Config.options.search.excludedSites.join(", ")
+                wrapMode: TextEdit.Wrap
+                onTextChanged: {
+                    Config.options.search.excludedSites = text.split(",").map(s => s.trim()).filter(s => s.length > 0);
+                }
+            }
         }
     }
 

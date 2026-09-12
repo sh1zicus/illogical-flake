@@ -332,6 +332,91 @@ ContentPage {
                     },
                 ]
             }
+
+            MaterialTextArea {
+                Layout.fillWidth: true
+                placeholderText: Translation.tr("Date format (e.g. ddd, dd/MM)")
+                text: Config.options.time.dateFormat
+                wrapMode: TextEdit.Wrap
+                onTextChanged: {
+                    Config.options.time.dateFormat = text;
+                }
+            }
+
+            MaterialTextArea {
+                Layout.fillWidth: true
+                placeholderText: Translation.tr("Short date format (e.g. dd/MM)")
+                text: Config.options.time.shortDateFormat
+                wrapMode: TextEdit.Wrap
+                onTextChanged: {
+                    Config.options.time.shortDateFormat = text;
+                }
+            }
+
+            MaterialTextArea {
+                Layout.fillWidth: true
+                placeholderText: Translation.tr("Date with year format (e.g. dd/MM/yyyy)")
+                text: Config.options.time.dateWithYearFormat
+                wrapMode: TextEdit.Wrap
+                onTextChanged: {
+                    Config.options.time.dateWithYearFormat = text;
+                }
+            }
+        }
+
+        ContentSubsection {
+            title: Translation.tr("Pomodoro")
+
+            ConfigRow {
+                uniform: true
+                ConfigSpinBox {
+                    icon: "timer"
+                    text: Translation.tr("Focus (s)")
+                    value: Config.options.time.pomodoro.focus
+                    from: 60
+                    to: 7200
+                    stepSize: 60
+                    onValueChanged: {
+                        Config.options.time.pomodoro.focus = value;
+                    }
+                }
+                ConfigSpinBox {
+                    icon: "coffee"
+                    text: Translation.tr("Break (s)")
+                    value: Config.options.time.pomodoro.breakTime
+                    from: 60
+                    to: 3600
+                    stepSize: 60
+                    onValueChanged: {
+                        Config.options.time.pomodoro.breakTime = value;
+                    }
+                }
+            }
+            ConfigRow {
+                uniform: true
+                ConfigSpinBox {
+                    icon: "coffee"
+                    text: Translation.tr("Long break (s)")
+                    value: Config.options.time.pomodoro.longBreak
+                    from: 60
+                    to: 7200
+                    stepSize: 60
+                    onValueChanged: {
+                        Config.options.time.pomodoro.longBreak = value;
+                    }
+                }
+                ConfigSpinBox {
+                    icon: "repeat"
+                    text: Translation.tr("Cycles before long break")
+                    value: Config.options.time.pomodoro.cyclesBeforeLongBreak
+                    from: 1
+                    to: 10
+                    stepSize: 1
+                    onValueChanged: {
+                        Config.options.time.pomodoro.cyclesBeforeLongBreak = value;
+                    }
+                }
+            }
         }
     }
 
@@ -353,6 +438,176 @@ ContentPage {
             checked: Config.options.workSafety.enable.wallpaper
             onCheckedChanged: {
                 Config.options.workSafety.enable.wallpaper = checked;
+            }
+        }
+    }
+
+    ContentSection {
+        icon: "dark_mode"
+        title: Translation.tr("Light")
+
+        ContentSubsection {
+            title: Translation.tr("Anti-flashbang")
+            ConfigSwitch {
+                buttonIcon: "flare"
+                text: Translation.tr("Enable")
+                checked: Config.options.light.antiFlashbang.enable
+                onCheckedChanged: {
+                    Config.options.light.antiFlashbang.enable = checked;
+                }
+                StyledToolTip {
+                    text: Translation.tr("Prevents sudden brightness flashes when switching content")
+                }
+            }
+        }
+
+        ContentSubsection {
+            title: Translation.tr("Night light")
+
+            ConfigSwitch {
+                buttonIcon: "wb_twilight"
+                text: Translation.tr("Automatic")
+                checked: Config.options.light.night.automatic
+                onCheckedChanged: {
+                    Config.options.light.night.automatic = checked;
+                }
+            }
+
+            ConfigRow {
+                enabled: Config.options.light.night.automatic
+                MaterialTextArea {
+                    Layout.fillWidth: true
+                    placeholderText: Translation.tr("From (HH:mm)")
+                    text: Config.options.light.night.from
+                    wrapMode: TextEdit.Wrap
+                    onTextChanged: {
+                        Config.options.light.night.from = text;
+                    }
+                }
+                MaterialTextArea {
+                    Layout.fillWidth: true
+                    placeholderText: Translation.tr("To (HH:mm)")
+                    text: Config.options.light.night.to
+                    wrapMode: TextEdit.Wrap
+                    onTextChanged: {
+                        Config.options.light.night.to = text;
+                    }
+                }
+            }
+
+            ConfigSpinBox {
+                icon: "light_mode"
+                text: Translation.tr("Color temperature (K)")
+                value: Config.options.light.night.colorTemperature
+                from: 1000
+                to: 10000
+                stepSize: 100
+                onValueChanged: {
+                    Config.options.light.night.colorTemperature = value;
+                }
+            }
+        }
+    }
+
+    ContentSection {
+        icon: "apps"
+        title: Translation.tr("Apps")
+
+        ContentSubsection {
+            title: Translation.tr("Launch commands")
+
+            ConfigRow {
+                uniform: true
+                MaterialTextArea {
+                    Layout.fillWidth: true
+                    placeholderText: Translation.tr("Terminal")
+                    text: Config.options.apps.terminal
+                    wrapMode: TextEdit.Wrap
+                    onTextChanged: {
+                        Config.options.apps.terminal = text;
+                    }
+                }
+                MaterialTextArea {
+                    Layout.fillWidth: true
+                    placeholderText: Translation.tr("Change password")
+                    text: Config.options.apps.changePassword
+                    wrapMode: TextEdit.Wrap
+                    onTextChanged: {
+                        Config.options.apps.changePassword = text;
+                    }
+                }
+            }
+            ConfigRow {
+                uniform: true
+                MaterialTextArea {
+                    Layout.fillWidth: true
+                    placeholderText: Translation.tr("Network")
+                    text: Config.options.apps.network
+                    wrapMode: TextEdit.Wrap
+                    onTextChanged: {
+                        Config.options.apps.network = text;
+                    }
+                }
+                MaterialTextArea {
+                    Layout.fillWidth: true
+                    placeholderText: Translation.tr("Network (Ethernet)")
+                    text: Config.options.apps.networkEthernet
+                    wrapMode: TextEdit.Wrap
+                    onTextChanged: {
+                        Config.options.apps.networkEthernet = text;
+                    }
+                }
+            }
+            ConfigRow {
+                uniform: true
+                MaterialTextArea {
+                    Layout.fillWidth: true
+                    placeholderText: Translation.tr("Bluetooth")
+                    text: Config.options.apps.bluetooth
+                    wrapMode: TextEdit.Wrap
+                    onTextChanged: {
+                        Config.options.apps.bluetooth = text;
+                    }
+                }
+                MaterialTextArea {
+                    Layout.fillWidth: true
+                    placeholderText: Translation.tr("Manage user")
+                    text: Config.options.apps.manageUser
+                    wrapMode: TextEdit.Wrap
+                    onTextChanged: {
+                        Config.options.apps.manageUser = text;
+                    }
+                }
+            }
+            ConfigRow {
+                uniform: true
+                MaterialTextArea {
+                    Layout.fillWidth: true
+                    placeholderText: Translation.tr("Task manager")
+                    text: Config.options.apps.taskManager
+                    wrapMode: TextEdit.Wrap
+                    onTextChanged: {
+                        Config.options.apps.taskManager = text;
+                    }
+                }
+                MaterialTextArea {
+                    Layout.fillWidth: true
+                    placeholderText: Translation.tr("Update")
+                    text: Config.options.apps.update
+                    wrapMode: TextEdit.Wrap
+                    onTextChanged: {
+                        Config.options.apps.update = text;
+                    }
+                }
+            }
+            MaterialTextArea {
+                Layout.fillWidth: true
+                placeholderText: Translation.tr("Volume mixer")
+                text: Config.options.apps.volumeMixer
+                wrapMode: TextEdit.Wrap
+                onTextChanged: {
+                    Config.options.apps.volumeMixer = text;
+                }
             }
         }
     }
