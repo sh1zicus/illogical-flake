@@ -16,12 +16,26 @@
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-  # Автоматическая уборка /nix: GC раз в неделю (старше 7 дней), оптимизация
-  # стора (hardlinks дедупликация) — не даём диску забиваться.
+  # Не предупреждать о грязном (незакоммиченном) /etc/nixos при каждой сборке.
+  nix.settings.warn-dirty = false;
+
+  # Отключаем дефолтный канал nixpkgs — с flake он не нужен, только путается.
+  nix.channel.enable = false;
+
+  # Локальный реестр: 'nix shell nixpkgs#foo' работает из стора без похода
+  # на github за current nixpkgs.
+  nix.registry.nixpkgs.to = {
+    type = "path";
+    path = pkgs.path;
+  };
+
+  # Автоматическая уборка /nix: GC раз в неделю (старше 7 дней + не более
+  # 10 последних генераций), оптимизация стора (hardlinks дедупликация) —
+  # не даём диску забиваться.
   nix.gc = {
     automatic = true;
     dates = "weekly";
-    options = "--delete-older-than 7d";
+    options = "--delete-older-than 7d --delete-generations 10";
   };
   nix.optimise.automatic = true;
 

@@ -20,7 +20,13 @@ fi
 CONFIG_DIR="$(cd "$(dirname "$0")" && pwd)"
 HOST="nixos"
 
-say() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+# В GUI-консоли Quickshell ANSI-цвета не читаются, поэтому при запуске
+# из кнопки Build (QS_BUILD=1) печатаем без escape-последовательностей.
+if [ "${QS_BUILD:-0}" = "1" ]; then
+  say() { printf '==> %s\n' "$*"; }
+else
+  say() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+fi
 
 if ! command -v nix >/dev/null 2>&1; then
   echo "Ошибка: nix не найден."
@@ -46,7 +52,7 @@ else
 fi
 
 say "Пересобираю и применяю систему..."
-sudo nixos-rebuild switch --flake "$CONFIG_DIR#$HOST"
+sudo nixos-rebuild --print-build-logs switch --flake "$CONFIG_DIR#$HOST"
 
 say "Готово!"
 say "Если что-то пошло не так:"

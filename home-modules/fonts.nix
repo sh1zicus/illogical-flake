@@ -1,10 +1,8 @@
-inputs:
-
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, nur, ... }:
 
 let
   cfg      = config.programs.illogical-impulse;
-  nurPkgs  = inputs.nur.legacyPackages.${pkgs.stdenv.hostPlatform.system};
+  nurPkgs  = nur.legacyPackages.${pkgs.stdenv.hostPlatform.system};
   customPkgs = import ../pkgs { inherit pkgs; };
 in
 {

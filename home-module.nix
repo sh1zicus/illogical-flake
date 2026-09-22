@@ -7,13 +7,20 @@ in
 {
   # Import all sub-modules
   imports = [
-    (import ./home-modules/fonts.nix inputs)
-    (import ./home-modules/packages.nix inputs)
-    (import ./home-modules/qt.nix inputs)
-    (import ./home-modules/environment.nix inputs)
-    (import ./home-modules/dotfiles.nix inputs)
-    (import ./home-modules/opencode.nix inputs)
+    ./home-modules/fonts.nix
+    ./home-modules/packages.nix
+    ./home-modules/qt.nix
+    ./home-modules/environment.nix
+    ./home-modules/dotfiles.nix
   ];
+
+  # Входы flake (quickshell, nur, dotfiles) прокидываем под-модулям через
+  # _module.args, а не через (import ./x.nix inputs). Так файлы в
+# home-modules/ остаются «обычными» модулями (их можно импортировать куда
+# угодно без обёрток), а все вложенные импорты видят эти аргументы.
+  config._module.args = {
+    inherit (inputs) quickshell nur dotfiles;
+  };
 
   # Main options for Illogical Impulse
   options.programs.illogical-impulse = {

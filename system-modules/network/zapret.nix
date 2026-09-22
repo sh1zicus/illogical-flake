@@ -1,8 +1,5 @@
-# Discord DPI bypass for the "nixos" host using the zapret2 NixOS module.
-#
-# Apply:
-#   sudo cp /tmp/opencode/zapret2-discord.nix /etc/nixos/zapret2-discord.nix
-#   sudo nixos-rebuild switch --flake /etc/nixos#nixos
+# Discord DPI bypass для хоста "nixos" через NixOS-модуль zapret2.
+
 { config, pkgs, ... }:
 
 {

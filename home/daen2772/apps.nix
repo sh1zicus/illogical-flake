@@ -2,9 +2,6 @@
 {
   # Пользовательские приложения. Пакеты из illogical-flake (dolphin, darkly,
   # plasma-integration, ...) приходят из самого модуля.
-  home.packages = with pkgs; [
-    bottles
-  ];
 
   # udiskie: автоматическое монтирование дисков (USB, NTFS) в пользовательской сессии.
   services.udiskie.enable = true;

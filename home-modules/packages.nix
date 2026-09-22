@@ -1,9 +1,11 @@
-inputs:
-
 { config, lib, pkgs, ... }:
 
 let
   cfg = config.programs.illogical-impulse;
+
+  # Локальные пакеты; papirus-patched = Papirus с исправленным наследованием
+  # (Adwaita вместо breeze), патч при сборке в pkgs/default.nix.
+  customPkgs = import ../pkgs { inherit pkgs; };
 
   # Python environment for quickshell wallpaper analysis
   pythonEnv = pkgs.python3.withPackages (ps: [
@@ -63,6 +65,7 @@ in
       jq
 
       # GUI applications
+      krita
       foot
       fuzzel
       matugen
@@ -113,7 +116,7 @@ in
 
       # Themes and icons
       adw-gtk3
-      papirus-icon-theme  # Primary icon theme
+      customPkgs.papirus-patched  # Primary icon theme (Adwaita-наследование)
       adwaita-icon-theme  # GNOME fallback icons
       hicolor-icon-theme  # Base icon theme (required by most themes)
       kdePackages.breeze-icons  # KDE Breeze icons (required by Papirus inheritance)

@@ -14,6 +14,7 @@
 
       # Системные модули (по категориям).
       ./system-modules/base.nix       # stateVersion, nix settings, шрифты
+      ./system-modules/overlays.nix   # overlay-и для пакетов из flake-входов
       ./system-modules/boot.nix       # загрузчик GRUB
       ./system-modules/locale.nix     # сеть, локализация, раскладка
       ./system-modules/users.nix      # пользователь + права sudo
@@ -36,13 +37,12 @@
       options = [ "noatime" "ssd" "discard=async" "space_cache=v2" "compress=zstd:1" "commit=120" ];
     };
 
-  # Динамическая блокировка серверов Stalzone/Stalcraft (московские пулы).
-  # Список IP тянется из API при каждой загрузке и периодически (см.
-  # stalzone-blocker.nix). login обязателен, но любое значение даёт полный
-  # общий список пулов — замени на свой логин при желании.
+  # Динамическая блокировка серверов Stalzone/Stalcraft. Разрешаем только
+  # региональные пулы EKB (Екатеринбург) и NSK1 (Новосибирск) — всё остальное
+  # блокируется (список IP тянется из API, см. stalzone-blocker.nix).
   services.stalzone-blocker = {
     enable = true;
     login = "nixos";
-    pools = [ "MSK1" "MSK2" ];
+    excludePools = [ "EKB" "NSK1" ];
   };
 }

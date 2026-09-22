@@ -1,6 +1,5 @@
 {
-  # Пользовательский shell. Файлы конфигов fish/starship приходят из
-  # illogical-flake (см. illogical.nix); тут можно добавлять свои опции.
-  programs.fish.enable = true;
-  programs.starship.enable = true;
+  # Пользовательский shell. fish/starship включаются модулем illogical-impulse
+  # (см. illogical.nix, опции dotfiles.fish/starship). Здесь — только свои
+  # добавки поверх той конфигурации.
 }

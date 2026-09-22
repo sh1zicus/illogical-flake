@@ -6,6 +6,14 @@
   # Flatpak: portable sandboxed apps from Flathub.
   services.flatpak.enable = false;
 
+  # Btrfs scrub: периодическая проверка контрольных сумм — раннее обнаружение
+  # повреждений файловой системы / битых секторов диска.
+  services.btrfs.autoScrub.enable = true;
+
+  # rtkit: даёт pipewire/wireplumber реалтайм-планирование (SCHED_RR) —
+  # ниже задержка звука без фризов под нагрузкой в играх.
+  security.rtkit.enable = true;
+
   # zram: сжатый swap в RAM вместо сброса на SSD — игры не фризят при
   # нехватке памяти, отзывчивость под нагрузкой выше.
   zramSwap = {

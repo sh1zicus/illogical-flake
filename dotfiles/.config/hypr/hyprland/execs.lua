@@ -6,7 +6,7 @@ hl.on("hyprland.start", function ()
     -- Run quickshell from $HOME: steam-run/bwrap (e.g. PortProton) launched via
     -- its app menu inherits this CWD, and bwrap fails with "Can't chdir" if the
     -- starting directory isn't reachable inside the FHS sandbox.
-    hl.exec_cmd("cd $HOME && exec qs -c $qsConfig")
+    hl.exec_cmd("cd $HOME && pkill -f '[q]s-wrapped'; exec qs -c $qsConfig")
     hl.exec_cmd("$HOME/.local/state/hypr/__restore_video_wallpaper.sh")
 
     -- Core components (authentication, lock screen, notification daemon)

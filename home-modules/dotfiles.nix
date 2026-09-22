@@ -1,15 +1,16 @@
-inputs:
-
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, dotfiles, ... }:
 
 let
   inherit (lib) mkEnableOption mkOption types mkIf mkDefault;
   cfg = config.programs.illogical-impulse;
 
-  # Use dotfiles from flake input
-  dotfilesSource = inputs.dotfiles;
+  # Используем dotfiles из flake-входа (path:./dotfiles) — без обёртки.
+  dotfilesSource = dotfiles;
 
-  in
+  # Локальные пакеты (иконки, шрифты). Сюда же вынесен Papirus с исправленным
+  # наследованием (патч при сборке, а не sed в activation-скрипте — см. pkgs/).
+  customPkgs = import ../pkgs { inherit pkgs; };
+in
 {
   options.programs.illogical-impulse.dotfiles = {
     fish.enable = mkEnableOption "Use the Illogical Impulse fish config" // { default = true; };
@@ -161,28 +162,76 @@ let
       };
     };
 
-    # Use activation script to copy files instead of symlinking
+    # Copy dotfiles into ~ (не symlink'ить!): QuickShell/wallpaper-пайплайн
+    # ПИШЕТ в эти файлы в рантайме (kdeglobals, quickshell/generated, matugen),
+    # а symlink на read-only store такую запись не переживёт. Поэтому cp -r при
+    # каждом переключении — это бэкдор-механизм энд-4 окружения, и здесь он
+    # остаётся по необходимости. Часть чистого контента (курсоры, bookmarks,
+    # иконки) уже декларативна через home.file/dconf/gtk выше.
     home.activation.copyIllogicalImpulseConfigs = config.lib.dag.entryAfter ["writeBoundary"] ''
-      # Path to the config directory in the dotfiles source
       configPath="${dotfilesSource}/.config"
+      localShareSrc="${dotfilesSource}/.local/share"
       targetPath="$HOME/.config"
+      targetLocalShare="$HOME/.local/share"
 
-      # Directories to exclude from copying (QuickShell manages these dynamically)
+      # Каталоги, которыми QuickShell управляет динамически — не трогаем.
       excludedDirs=("illogical-impulse")
-
-      # Files to preserve if they already exist. The wallpaper pipeline merges
-      # the generated MaterialYou color scheme into ~/.config/kdeglobals, so
-      # clobbering it with the static default on every switch resets Qt app
-      # colors. Keep the user's runtime-managed copy instead.
+      # Файлы, которые принадлежат рантайму (wallpaper-пайплайн сливает в
+      # kdeglobals материал-тему) — не затираем, если уже существуют.
       preserveFiles=("kdeglobals")
 
-      # Copy all items from dotfiles .config to user .config
-      $DRY_RUN_CMD mkdir -p "$targetPath"
+      # is_in <name> <items...>: есть ли name в списке.
+      is_in() {
+        local needle="$1"; shift
+        for it in "$@"; do [ "$it" = "$needle" ] && return 0; done
+        return 1
+      }
 
-      # Create illogical-impulse directory structure if it doesn't exist
+      # Копируем $src/* в $dst БЕЗ symlink-ов, перезаписывая старые копии.
+      # Доп. правила для .config: excluded (рантайм-каталоги) и preserved
+      # (файлы, которые не должны затираться).
+      copy_config() {
+        $DRY_RUN_CMD mkdir -p "$targetPath"
+        shopt -s nullglob
+        for item in "$configPath"/*; do
+          [ -e "$item" ] || continue
+          name="$(basename "$item")"
+          is_in "$name" "''${excludedDirs[@]}" && continue
+          if is_in "$name" "''${preserveFiles[@]}" && [ -e "$targetPath/$name" ]; then
+            continue
+          fi
+          if [ -e "$targetPath/$name" ] || [ -L "$targetPath/$name" ]; then
+            $DRY_RUN_CMD rm -rf "$targetPath/$name"
+          fi
+          $DRY_RUN_CMD cp -r "$item" "$targetPath/$name"
+          # Store-права read-only; рантайм должен мочь писать в копии.
+          $DRY_RUN_CMD chmod -R u+w "$targetPath/$name"
+        done
+      }
+
+      # То же для .local/share (иконки и т.п.), плюс перенос фирменной иконки
+      # окружения в стандартный hicolor.
+      copy_local_share() {
+        $DRY_RUN_CMD mkdir -p "$targetLocalShare"
+        shopt -s nullglob
+        for item in "$localShareSrc"/*; do
+          [ -e "$item" ] || continue
+          name="$(basename "$item")"
+          if [ -e "$targetLocalShare/$name" ] || [ -L "$targetLocalShare/$name" ]; then
+            $DRY_RUN_CMD rm -rf "$targetLocalShare/$name"
+          fi
+          $DRY_RUN_CMD cp -r "$item" "$targetLocalShare/$name"
+          $DRY_RUN_CMD chmod -R u+w "$targetLocalShare/$name"
+        done
+        if [ -f "$targetLocalShare/icons/illogical-impulse.svg" ]; then
+          $DRY_RUN_CMD mkdir -p "$targetLocalShare/icons/hicolor/scalable/apps"
+          $DRY_RUN_CMD mv "$targetLocalShare/icons/illogical-impulse.svg" "$targetLocalShare/icons/hicolor/scalable/apps/"
+        fi
+      }
+
+      # --- .config: создаём каталог окружения + дефолтный config.json (только
+      #     если его ещё нет — иначе сбрасывались бы пользовательские настройки).
       $DRY_RUN_CMD mkdir -p "$targetPath/illogical-impulse"
-
-      # Copy the default config.json only if it doesn't already exist
       if [ ! -f "$targetPath/illogical-impulse/config.json" ]; then
         if [ -f "$configPath/illogical-impulse/config.json" ]; then
           $DRY_RUN_CMD cp "$configPath/illogical-impulse/config.json" "$targetPath/illogical-impulse/config.json"
@@ -190,136 +239,51 @@ let
         fi
       fi
 
-      for item in "$configPath"/*; do
-        itemName=$(basename "$item")
-        targetItem="$targetPath/$itemName"
+      copy_config
 
-        # Skip excluded directories
-        skip=false
-        for excluded in "''${excludedDirs[@]}"; do
-          if [ "$itemName" = "$excluded" ]; then
-            skip=true
-            break
-          fi
-        done
+      # --- Правки Qt-темирования после копирования (см. environment.nix) ---
 
-        if [ "$skip" = true ]; then
-          continue
-        fi
-
-        # Skip runtime-managed files that already exist (keep user's version)
-        preserve=false
-        for preserved in "''${preserveFiles[@]}"; do
-          if [ "$itemName" = "$preserved" ] && [ -e "$targetItem" ]; then
-            preserve=true
-            break
-          fi
-        done
-
-        if [ "$preserve" = true ]; then
-          continue
-        fi
-
-        # Remove existing file/directory if it exists
-        if [ -e "$targetItem" ] || [ -L "$targetItem" ]; then
-          $DRY_RUN_CMD rm -rf "$targetItem"
-        fi
-
-        # Copy the item (works for both files and directories)
-        $DRY_RUN_CMD cp -r "$item" "$targetItem"
-
-        # Make files writable
-        $DRY_RUN_CMD chmod -R u+w "$targetItem"
-      done
-
-      echo "Copied Illogical Impulse configuration files to ~/.config"
-
-      # Fix Qt theming consistency. Qt/KDE apps read kdeglobals for colors,
-      # icons and fonts (QT_QPA_PLATFORMTHEME=kde, see environment.nix), so the
-      # single source of truth must be kdeglobals - NOT qt5ct/qt6ct.conf (which
-      # upstream end-4 doesn't ship and whose plugins nix-wrapped apps can't load).
-      kdeglobals_conf="$targetPath/kdeglobals"
-
-      # 1) Icon theme: always Breeze so Dolphin/KDE apps and Qt icons match.
-      #    (breeze-dark for dark color-scheme, breeze for light)
+      # (1) Иконки: Breeze. Qt/KDE читают kdeglobals (QT_QPA_PLATFORMTHEME=kde),
+      #     единый источник правды — kdeglobals, а не qt5ct/qt6ct.
       icon_theme="breeze-dark"
       if [ "$(grep -q 'prefer-light' "$targetPath/gtk-3.0/settings.ini" 2>/dev/null && echo light)" = "light" ]; then
         icon_theme="breeze"
       fi
-      if [ -f "$kdeglobals_conf" ]; then
-        if $DRY_RUN_CMD grep -q '^\[Icons\]' "$kdeglobals_conf"; then
-          $DRY_RUN_CMD sed -i "s/^Theme=.*/Theme=$icon_theme/" "$kdeglobals_conf"
+      if [ -f "$targetPath/kdeglobals" ]; then
+        if $DRY_RUN_CMD grep -q '^\[Icons\]' "$targetPath/kdeglobals"; then
+          $DRY_RUN_CMD sed -i "s/^Theme=.*/Theme=$icon_theme/" "$targetPath/kdeglobals"
         else
-          printf '\n[Icons]\nTheme=%s\n' "$icon_theme" >> "$kdeglobals_conf"
+          printf '\n[Icons]\nTheme=%s\n' "$icon_theme" >> "$targetPath/kdeglobals"
         fi
         echo "Set kdeglobals icon theme to $icon_theme"
       fi
 
-      # 2) Fonts: upstream references "Google Sans Flex" which isn't installed
-      #    (fc-match falls back to DejaVu). Use Rubik (installed, used by the shell).
+      # (2) Шрифты: upstream ссылается на "Google Sans Flex", которого нет
+      #     (fc-match падает на DejaVu). Используем Rubik (стоит, используется shell).
       for entry in "font=Google Sans Flex,11,-1,5,500,0,0,0,0,0,0,0,0,0,0,1,Medium" \
                    "menuFont=Google Sans Flex,10,-1,5,500,0,0,0,0,0,0,0,0,0,0,1,Medium" \
                    "smallestReadableFont=Google Sans Flex,9,-1,5,500,0,0,0,0,0,0,0,0,0,0,1,Medium" \
                    "toolBarFont=Google Sans Flex,10,-1,5,500,0,0,0,0,0,0,0,0,0,0,1,Medium" \
                    "activeFont=Google Sans Flex,10,-1,5,500,0,0,0,0,0,0,0,0,0,0,1,Medium"; do
         key="''${entry%%=*}"
-        $DRY_RUN_CMD sed -i "/^''${key}=/s|Google Sans Flex,''${key#font}|Rubik,''${key#font}|; /^''${key}=/s|Google Sans Flex|Rubik|g" "$kdeglobals_conf"
+        $DRY_RUN_CMD sed -i "/^''${key}=/s|Google Sans Flex,''${key#font}|Rubik,''${key#font}|; /^''${key}=/s|Google Sans Flex|Rubik|g" "$targetPath/kdeglobals"
       done
       echo "Fixed kdeglobals fonts (Google Sans Flex -> Rubik)"
 
-      # 3) Remove stale qt5ct/qt6ct configs (created by older illogical-flake
-      #    versions when qt6ct was the platform theme). They are dead config
-      #    now and only mislead the qt5ct/qt6ct settings dialogs (e.g. showing
-      #    DejaVu 12 instead of the real kdeglobals font).
+      # (3) Снос устаревших qt5ct/qt6ct конфигов от старых версий flake —
+      #     они теперь мертвы и путают диалоги настроек Qt.
       $DRY_RUN_CMD rm -rf "$targetPath/qt5ct" "$targetPath/qt6ct"
-      echo "Removed stale qt5ct/qt6ct configs"
 
-      # Fix fontconfig conf.d if it's a file instead of directory
+      # (4) fontconfig/conf.d должен быть директорией, а не файлом.
       if [ -f "$targetPath/fontconfig/conf.d" ]; then
         $DRY_RUN_CMD rm "$targetPath/fontconfig/conf.d"
         $DRY_RUN_CMD mkdir -p "$targetPath/fontconfig/conf.d"
-        echo "Fixed fontconfig/conf.d to be a directory"
       fi
 
-      # Copy .local/share contents (icons, etc.)
-      localSharePath="${dotfilesSource}/.local/share"
-      targetLocalShare="$HOME/.local/share"
+      # --- .local/share ---
+      copy_local_share
 
-      if [ -d "$localSharePath" ]; then
-        $DRY_RUN_CMD mkdir -p "$targetLocalShare"
-
-        for item in "$localSharePath"/*; do
-          if [ -e "$item" ]; then
-            itemName=$(basename "$item")
-            targetItem="$targetLocalShare/$itemName"
-
-            # Remove existing file/directory if it exists
-            if [ -e "$targetItem" ] || [ -L "$targetItem" ]; then
-              $DRY_RUN_CMD rm -rf "$targetItem"
-            fi
-
-            # Copy the item
-            $DRY_RUN_CMD cp -r "$item" "$targetItem"
-
-            # Make files writable
-            $DRY_RUN_CMD chmod -R u+w "$targetItem"
-          fi
-        done
-
-        # Move illogical-impulse icon to the correct hicolor theme directory if it exists
-        if [ -f "$targetLocalShare/icons/illogical-impulse.svg" ]; then
-          $DRY_RUN_CMD mkdir -p "$targetLocalShare/icons/hicolor/scalable/apps"
-          $DRY_RUN_CMD mv "$targetLocalShare/icons/illogical-impulse.svg" "$targetLocalShare/icons/hicolor/scalable/apps/"
-          echo "Moved illogical-impulse icon to hicolor theme directory"
-        fi
-
-        echo "Copied Illogical Impulse .local/share files to ~/.local/share"
-      fi
-
-      # Breeze icons are used for both Qt/KDE (Dolphin) and GTK apps; they ship
-      # via kdePackages.breeze-icons so no copying of index.theme is needed.
-
-      # Remove stale OneUI icon themes from previous setups
+      # Удаляем устаревшие OneUI-темы от старых установок.
       for stale_theme in OneUI OneUI-dark OneUI-light; do
         if [ -e "$targetLocalShare/icons/$stale_theme" ] || [ -L "$targetLocalShare/icons/$stale_theme" ]; then
           $DRY_RUN_CMD rm -rf "$targetLocalShare/icons/$stale_theme"
@@ -327,52 +291,30 @@ let
         fi
       done
 
-      # Fix Papirus themes to replace breeze inheritance with Adwaita
-      # Since breeze doesn't have inode-directory icons, we bypass it entirely
-      echo "Fixing Papirus icon inheritance..."
-      for papirus_theme in Papirus-Dark Papirus-Light Papirus; do
-        papirus_local="$targetLocalShare/icons/$papirus_theme"
-        papirus_source="${pkgs.papirus-icon-theme}/share/icons/$papirus_theme"
-
-        # Always copy from source (removing symlink or directory if exists)
-        if [ -e "$papirus_local" ] || [ -L "$papirus_local" ]; then
-          $DRY_RUN_CMD rm -rf "$papirus_local"
+      # Papirus: темы приходят уже с исправленным наследованием (Adwaita вместо
+      # breeze — breeze не содержит inode-directory иконок) из pkgs/default.nix,
+      # патч делается при СБОРКЕ пакета. Здесь осталось только скопировать их
+      # локально (GTK/quickshell смотрят в ~/.local/share/icons).
+      echo "Installing Papirus icon themes..."
+      for theme in Papirus Papirus-Dark Papirus-Light; do
+        local_theme="$targetLocalShare/icons/$theme"
+        source_theme="${customPkgs.papirus-patched}/share/icons/$theme"
+        if [ -e "$local_theme" ] || [ -L "$local_theme" ]; then
+          $DRY_RUN_CMD rm -rf "$local_theme"
         fi
-
-        if [ -d "$papirus_source" ]; then
-          $DRY_RUN_CMD cp -r "$papirus_source" "$papirus_local"
-          $DRY_RUN_CMD chmod -R u+w "$papirus_local"
-
-          # Replace breeze inheritance with Adwaita
-          if [ -f "$papirus_local/index.theme" ]; then
-            $DRY_RUN_CMD sed -i 's/Inherits=breeze-dark,/Inherits=Adwaita,/g' "$papirus_local/index.theme"
-            $DRY_RUN_CMD sed -i 's/Inherits=breeze-light,/Inherits=Adwaita,/g' "$papirus_local/index.theme"
-            $DRY_RUN_CMD sed -i 's/Inherits=breeze,/Inherits=Adwaita,/g' "$papirus_local/index.theme"
-            echo "Updated $papirus_theme to inherit from Adwaita"
-          fi
-
-          # Papirus already has inode-directory as symlinks, but let's ensure they exist
-          for size_dir in "$papirus_local"/*/places; do
-            if [ -d "$size_dir" ] && [ -f "$size_dir/folder.svg" ]; then
-              if [ ! -e "$size_dir/inode-directory.svg" ]; then
-                $DRY_RUN_CMD ln -sf folder.svg "$size_dir/inode-directory.svg"
-                echo "Created inode-directory symlink in $(dirname "$size_dir")/places"
-              fi
-            fi
-          done
-          echo "Processed $papirus_theme successfully"
+        if [ -d "$source_theme" ]; then
+          $DRY_RUN_CMD cp -r "$source_theme" "$local_theme"
+          $DRY_RUN_CMD chmod -R u+w "$local_theme"
         fi
       done
 
-      # Update icon cache for all installed icon themes
+      # Обновляем кэш иконок для всех установленных тем.
       echo "Updating icon cache..."
+      shopt -s nullglob
       for theme_dir in "$targetLocalShare/icons"/*; do
-        if [ -d "$theme_dir" ]; then
-          theme_name=$(basename "$theme_dir")
-          if [ -f "$theme_dir/index.theme" ] || [ -f "$theme_dir/icon-theme.cache" ]; then
-            $DRY_RUN_CMD ${pkgs.gtk3}/bin/gtk-update-icon-cache -f -t "$theme_dir" 2>/dev/null || true
-            echo "Updated icon cache for $theme_name"
-          fi
+        [ -d "$theme_dir" ] || continue
+        if [ -e "$theme_dir/index.theme" ] || [ -e "$theme_dir/icon-theme.cache" ]; then
+          $DRY_RUN_CMD ${pkgs.gtk3}/bin/gtk-update-icon-cache -f -t "$theme_dir" 2>/dev/null || true
         fi
       done
     '';

@@ -18,11 +18,18 @@
 ├── configuration.nix        # системные настройки (пользователи, драйверы, мосты...)
 ├── hardware-configuration.nix  # железо (генерируется автоматически)
 ├── system-modules/               # // СИСТЕМНЫЕ МОДУЛИ (по полочкам) //
-│   └── network/
+│   ├── base.nix                  # stateVersion, настройки nix (gc, registry...)
+│   ├── overlays.nix              # правки пакетов из flake-входов (portproton FHS, ...)
+│   ├── boot.nix                  # загрузчик GRUB, ядро (xanmod, ntsync)
+│   ├── locale.nix                # сеть, локализация, раскладка
+│   ├── users.nix                 # пользователь + права sudo
+│   ├── packages.nix              # пакеты системного профиля
+│   ├── services.nix              # службы, производительность, графика
+│   ├── shell.nix                 # fish + автологин / запуск Hyprland
+│   └── network/                  # // СЕТЕВЫЕ МОДУЛИ //
 │       ├── warp.nix              # Cloudflare WARP (обход блокировок)
 │       ├── zapret.nix            # Discord DPI bypass (zapret2)
 │       └── stalzone-blocker.nix  # блокировка серверов Stalzone (dynamic nft)
-├── system-modules/network/       # сетевые модули машины
 ├── home/
 │   └── daen2772/            # // ЛИЧНЫЕ НАСТРОЙКИ ПОЛЬЗОВАТЕЛЯ //
 │       ├── default.nix      # точка входа: username, импорты ниже
@@ -33,6 +40,9 @@
 ├── home-modules/            # его части: fonts, packages, qt, env, dotfiles...
 ├── pkgs/                    # локальные пакеты (иконки, шрифты)
 ├── dotfiles/                # файлы конфигов end-4 (.config, .local) — копируются в ~
+│   └── .config/quickshell/ii/modules/ii/nixosConfig/
+│                               # менеджер конфига NixOS (дерево файлов +
+│                               # редактор с подсветкой + пересборка через polkit)
 ├── update.sh                # обновить и применить конфиг
 ├── install.sh               # применить/установить (на свежей машине)
 └── README.md                # этот файл

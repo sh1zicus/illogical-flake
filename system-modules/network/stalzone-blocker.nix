@@ -6,6 +6,10 @@
 #
 #   services.stalzone-blocker.enable = true;
 #   services.stalzone-blocker.login  = "ваш_логин";  # обязателен (без него API 500)
+#   # Блокировать все пулы, кроме EKB и NSK1 (свои региональные серверы):
+#   services.stalzone-blocker.excludePools = [ "EKB" "NSK1" ];
+#   # Либо блокировать только перечисленные пулы:
+#   services.stalzone-blocker.pools = [ "MSK2" "EKB" ];
 #
 # Что происходит:
 #   * systemd-юнит stalzone-blocker-fetch.service (oneshot, запуск после сети)
@@ -31,6 +35,10 @@ let
   jsonFile = "${stateDir}/address_list.json";
   nftScript = "${stateDir}/rules.nft";
 
+  # Списки пулов для jq: включённые (pools) и исключённые (excludePools).
+  includedList = lib.concatMapStringsSep ", " (p: "\"${p}\"") cfg.pools;
+  excludedList = lib.concatMapStringsSep ", " (p: "\"${p}\"") cfg.excludePools;
+
   # Скрипт: качает список, парсит jq, собирает правила, применяет nft.
   updateScript = pkgs.writeShellScript "stalzone-blocker-update" ''
     set -euo pipefail
@@ -45,15 +53,22 @@ let
     ${if cfg.tlsVerify then "curl -sSL --fail" else "curl -skSL --fail"} \
       "$url" -o "${jsonFile}"
 
-    # Извлекаем IP из выбранных пулов (или всех, если pools = []).
+    # Извлекаем IP: либо только выбранные пулы (pools), либо все, либо все
+    # кроме excludePools (когда pools = []).
     ${lib.optionalString (cfg.pools != []) ''
     pools_json="$(
-      jq -r '[ .pools[] | select(.name as $n | [${lib.concatMapStringsSep ", " (p: "\"${p}\"") cfg.pools}] | index($n)) ]' \
+      jq -r '[ .pools[] | select(.name as $n | [${includedList}] | index($n)) ]' \
         "${jsonFile}"
     )"
     ''}
-    ${lib.optionalString (cfg.pools == []) ''
+    ${lib.optionalString (cfg.pools == [] && cfg.excludePools == []) ''
     pools_json="$(jq -r '.pools' "${jsonFile}")"
+    ''}
+    ${lib.optionalString (cfg.pools == [] && cfg.excludePools != []) ''
+    pools_json="$(
+      jq -r '[ .pools[] | select((.name as $n | [${excludedList}] | index($n)) | not) ]' \
+        "${jsonFile}"
+    )"
     ''}
 
     # Список IP: из tunnels[] + статические servers.
@@ -117,6 +132,16 @@ in
       example = [ "MSK2" "EKB" ];
     };
 
+    excludePools = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = ''
+        Пулы, которые НЕ блокировать (например, свои региональные серверы).
+        Работает только когда pools = []: блокируются все пулы, кроме указанных.
+      '';
+      example = [ "EKB" "NSK1" ];
+    };
+
     servers = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
@@ -162,6 +187,10 @@ in
       {
         assertion = cfg.login != "";
         message = "services.stalzone-blocker.login обязателен (API без login возвращает 500)";
+      }
+      {
+        assertion = cfg.pools == [ ] || cfg.excludePools == [ ];
+        message = "services.stalzone-blocker: нельзя задавать одновременно pools и excludePools";
       }
     ];
 

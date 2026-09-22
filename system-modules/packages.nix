@@ -2,6 +2,11 @@
 
 { config, pkgs, ... }:
 
+let
+  # Локальные пакеты из этого репо (pkgs/).
+  customPkgs = import ../pkgs { inherit pkgs; };
+in
+
 {
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
@@ -9,8 +14,6 @@
   environment.systemPackages = with pkgs; [
     git
     vim
-    wget
-    nano
     opencode
     ncdu
 
@@ -31,7 +34,10 @@
     # сборки не может запустить 64-битный клиент Stalcraft/Stalzone).
     winePackages.stableFull
 
-    # PortProton — графический лаунчер Wine/Proton для Windows-игр.
+    # PortProton — графический лаунчер Wine/Proton для Windows-игр. Тянет СВОЙ
+    # wine/proton внутри bwrap-песочницы, поэтому дублирует winePackages выше.
+    # Оба нужны: системный wine = прямой запуск клиентов/игр (Stalcraft),
+    # portproton = остальные Windows-игры через GUI-лаунчер.
     portproton
 
     # NixOS Configuration Editor — графическое редактирование NixOS-конфига.

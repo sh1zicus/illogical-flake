@@ -265,6 +265,14 @@ Item {
                 }
             }
             QuickToggleButton {
+                toggled: GlobalStates.nixosConfigOpen
+                buttonIcon: "code"
+                onClicked: GlobalStates.nixosConfigOpen = !GlobalStates.nixosConfigOpen
+                StyledToolTip {
+                    text: Translation.tr("NixOS Config")
+                }
+            }
+            QuickToggleButton {
                 toggled: false
                 buttonIcon: "restart_alt"
                 onClicked: {
