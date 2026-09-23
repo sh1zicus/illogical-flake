@@ -16,9 +16,12 @@ Rectangle {
 
     property int selectedTab: 0
     property string query: ""
+    onQueryChanged: root.refreshFilter()
     property var pkgRows: []
     property var pkgModel: []
     property var serviceRows: []
+    property var runningRows: []
+    property var configServiceRows: []
 
     // Клик по пакету в списке: открыть файл конфига на нужной строке.
     signal packageClicked(string path, int line)
@@ -93,6 +96,18 @@ Rectangle {
         }
     }
 
+    Process {
+        id: configServicesProc
+        command: ["python3", Quickshell.shellPath("scripts/nixos-list-services.py")]
+        stdout: StdioCollector {
+            id: configServicesOutput
+            waitForEnd: true
+            onStreamFinished: {
+                root.parseConfigServices(configServicesOutput.text);
+            }
+        }
+    }
+
     function parseServices(txt) {
         const lines = txt.split("\n");
         const rows = [];
@@ -108,11 +123,48 @@ Rectangle {
             const desc = parts.slice(4).join(" ");
             rows.push({ group, unit, sub, desc });
         }
+        root.runningRows = rows;
+        root.mergeServices();
+    }
+
+    function parseConfigServices(txt) {
+        const rows = [];
+        for (const line of txt.split("\n")) {
+            const parts = line.split("\t");
+            if (parts.length < 4) continue;
+            const name = parts[3].trim();
+            const path = parts[1].trim();
+            if (!name || !path) continue;
+            rows.push({
+                source: parts[0].trim(),
+                group: "config",
+                unit: name,
+                sub: "",
+                desc: "",
+                file: path.split("/").pop(),
+                path: path,
+                line: parseInt(parts[2], 10) || 1
+            });
+        }
+        root.configServiceRows = rows;
+        root.mergeServices();
+    }
+
+    function mergeServices() {
+        const pri = { config: 0, user: 1, system: 2 };
+        const rows = root.configServiceRows.concat(root.runningRows);
+        rows.sort((a, b) =>
+            (pri[a.group] - pri[b.group]) || a.unit.localeCompare(b.unit, "en"));
         root.serviceRows = rows;
+    }
+
+    function svcCount(group) {
+        return root.serviceRows.filter(svc => svc.group === group).length;
     }
 
     function refreshServices() {
         servicesProc.running = true;
+        configServicesProc.running = true;
     }
 
     // ------------------------------------------------------------- ui
@@ -143,7 +195,7 @@ Rectangle {
                     weight: Font.Medium
                 }
                 color: Appearance.colors.colOnLayer1
-                text: root.selectedTab === 0 ? "Packages from config" : "Running services"
+                text: root.selectedTab === 0 ? "Packages from config" : "Services (config + running)"
             }
             IconToolbarButton { // refresh
                 id: reloadBtn
@@ -324,18 +376,61 @@ Rectangle {
                 section.delegate: Item {
                     height: 26
                     width: servicesList.width
-                    StyledText {
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.left: parent.left
-                        anchors.leftMargin: 2
-                        font.pixelSize: Appearance.font.pixelSize.smallest
-                        color: Appearance.m3colors.m3outline
-                        text: section === "user" ? "User services" : "System services"
+                    RowLayout {
+                        anchors {
+                            left: parent.left
+                            right: parent.right
+                            verticalCenter: parent.verticalCenter
+                        }
+                        spacing: 6
+                        StyledText {
+                            anchors.left: parent.left
+                            anchors.leftMargin: 2
+                            font.pixelSize: Appearance.font.pixelSize.smallest
+                            color: Appearance.m3colors.m3outline
+                            text: section === "config"
+                                ? "From config"
+                                : (section === "user" ? "User running" : "System running")
+                        }
+                        Item {
+                            Layout.fillWidth: true
+                        }
+                        Rectangle {
+                            radius: height / 2
+                            color: Appearance.colors.colTertiaryContainer
+                            implicitWidth: svcCountLabel.implicitWidth + 14
+                            height: 18
+                            StyledText {
+                                id: svcCountLabel
+                                anchors.centerIn: parent
+                                font.pixelSize: Appearance.font.pixelSize.smallest
+                                color: Appearance.colors.colOnTertiaryContainer
+                                text: `${root.svcCount(section)}`
+                            }
+                        }
                     }
                 }
                 delegate: Item {
                     required property var modelData
                     implicitHeight: 30
+
+                    MouseArea {
+                        anchors.fill: parent
+                        enabled: modelData.group === "config"
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            console.log("[sidebarDBG] svc click", modelData.path, modelData.line);
+                            root.packageClicked(modelData.path, modelData.line);
+                        }
+                        Rectangle { // hover bg
+                            anchors.fill: parent
+                            radius: 6
+                            color: modelData.group === "config" && containsMouse
+                                ? Appearance.colors.colLayer2
+                                : "transparent"
+                        }
+                    }
 
                     RowLayout {
                         anchors {
@@ -345,18 +440,47 @@ Rectangle {
                         }
                         spacing: 6
 
-                        Rectangle { // status dot
-                            width: 8
-                            height: 8
-                            radius: 4
-                            color: modelData.sub === "running"
-                                ? "#56d364"
-                                : Appearance.m3colors.m3outline
+                        Item { // marker: source badge (config) or status dot (running)
+                            width: 20
+                            height: 16
+                            Rectangle { // config: system/home badge
+                                id: svcBadge
+                                visible: modelData.group === "config"
+                                anchors.centerIn: parent
+                                width: 16
+                                height: 16
+                                radius: 4
+                                color: modelData.source === "system"
+                                    ? Appearance.colors.colSecondaryContainer
+                                    : Appearance.colors.colTertiaryContainer
+                                StyledText {
+                                    anchors.centerIn: parent
+                                    font.pixelSize: Appearance.font.pixelSize.smallest
+                                    color: modelData.source === "system"
+                                        ? Appearance.colors.colOnSecondaryContainer
+                                        : Appearance.colors.colOnTertiaryContainer
+                                    text: modelData.source === "system" ? "S" : "H"
+                                }
+                            }
+                            Rectangle { // running: status dot
+                                visible: modelData.group !== "config"
+                                anchors.centerIn: parent
+                                width: 8
+                                height: 8
+                                radius: 4
+                                color: modelData.sub === "running"
+                                    ? "#56d364"
+                                    : Appearance.m3colors.m3outline
+                            }
                         }
                         StyledText {
                             font {
-                                family: Appearance.font.family.monospace
-                                pixelSize: Appearance.font.pixelSize.small
+                                family: modelData.group === "config"
+                                    ? Appearance.font.family.monospace
+                                    : Appearance.font.family.main
+                                pixelSize: modelData.group === "config"
+                                    ? Appearance.font.pixelSize.small
+                                    : Appearance.font.pixelSize.small
                             }
                             color: Appearance.colors.colOnLayer1
                             text: modelData.unit.replace(/\.service$/, "")
@@ -370,7 +494,9 @@ Rectangle {
                             font.pixelSize: Appearance.font.pixelSize.smallest
                             color: Appearance.colors.colOnLayer1
                             opacity: 0.7
-                            text: modelData.desc
+                            text: modelData.group === "config"
+                                ? `${modelData.file}:${modelData.line}`
+                                : modelData.desc
                         }
                     }
                 }

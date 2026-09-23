@@ -16,17 +16,15 @@ fi
 getdate() {
     date '+%Y-%m-%d_%H.%M.%S'
 }
-
-# Convert slurp format "X,Y WxH" to gpu-screen-recorder format "WxH+X+Y"
-slurp2gsr() {
-    if [[ "$1" =~ ^([0-9]+),([0-9]+)\ ([0-9]+)x([0-9]+)$ ]]; then
-        echo "${BASH_REMATCH[3]}x${BASH_REMATCH[4]}+${BASH_REMATCH[1]}+${BASH_REMATCH[2]}"
-    else
-        echo "$1"
-    fi
+getaudiooutput() {
+    pactl list sources | grep 'Name' | grep 'monitor' | cut -d ' ' -f2
+}
+getactivemonitor() {
+    hyprctl monitors -j | jq -r '.[] | select(.focused == true) | .name'
 }
 
 mkdir -p "$RECORDING_DIR"
+cd "$RECORDING_DIR" || exit
 
 # parse --region <value> without modifying $@ so other flags like --fullscreen still work
 ARGS=("$@")
@@ -48,18 +46,17 @@ for ((i=0;i<${#ARGS[@]};i++)); do
     fi
 done
 
-if pgrep gpu-screen-recorder > /dev/null; then
+if pgrep wf-recorder > /dev/null; then
     notify-send "Recording Stopped" "Stopped" -a 'Recorder' &
-    pkill gpu-screen-recorder &
+    pkill wf-recorder &
 else
     if [[ $FULLSCREEN_FLAG -eq 1 ]]; then
-        notify-send "Starting recording" 'recording_'"$(getdate)"'.mkv' -a 'Recorder' & disown
+        notify-send "Starting recording" 'recording_'"$(getdate)"'.mp4' -a 'Recorder' & disown
         if [[ $SOUND_FLAG -eq 1 ]]; then
-            gpu-screen-recorder -w screen -k h264 -q very_high -a default_output -o "$RECORDING_DIR/recording_$(getdate).mkv" &
+            wf-recorder -o "$(getactivemonitor)" --pixel-format yuv420p -f './recording_'"$(getdate)"'.mp4' -t --audio="$(getaudiooutput)"
         else
-            gpu-screen-recorder -w screen -k h264 -q very_high -o "$RECORDING_DIR/recording_$(getdate).mkv" &
+            wf-recorder -o "$(getactivemonitor)" --pixel-format yuv420p -f './recording_'"$(getdate)"'.mp4' -t
         fi
-        disown
     else
         # If a manual region was provided via --region, use it; otherwise run slurp as before.
         if [[ -n "$MANUAL_REGION" ]]; then
@@ -71,15 +68,11 @@ else
             fi
         fi
 
-        # Convert slurp format "X,Y WxH" to gpu-screen-recorder format "WxH+X+Y"
-        gsr_region=$(slurp2gsr "$region")
-
-        notify-send "Starting recording" 'recording_'"$(getdate)"'.mkv' -a 'Recorder' & disown
+        notify-send "Starting recording" 'recording_'"$(getdate)"'.mp4' -a 'Recorder' & disown
         if [[ $SOUND_FLAG -eq 1 ]]; then
-            gpu-screen-recorder -w region -region "$gsr_region" -k h264 -q very_high -a default_output -o "$RECORDING_DIR/recording_$(getdate).mkv" &
+            wf-recorder --pixel-format yuv420p -f './recording_'"$(getdate)"'.mp4' -t --geometry "$region" --audio="$(getaudiooutput)"
         else
-            gpu-screen-recorder -w region -region "$gsr_region" -k h264 -q very_high -o "$RECORDING_DIR/recording_$(getdate).mkv" &
+            wf-recorder --pixel-format yuv420p -f './recording_'"$(getdate)"'.mp4' -t --geometry "$region"
         fi
-        disown
     fi
 fi
