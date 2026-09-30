@@ -272,7 +272,45 @@ Item {
         return line;
     }
 
-    // Позиция конца строки (после переноса) — для подсветки выбора.
+    // Текст скроллит внешний Flickable, а не сам TextEdit, поэтому при ходьбе
+    // стрелками курсор уезжает за нижний край и область видимости не
+    // прокручивается. Держим курсор в видимой зоне с запасом в несколько строк.
+    function ensureCursorVisible() {
+        if (!editor || !editorScrollView) return;
+        const view = editorScrollView;
+        const rect = editor.cursorRectangle;
+        const lineH = Math.max(root.lineAdvance, rect.height);
+        // Запас в одну строку: прокрутка включается ровно когда курсор
+        // доходит до нижнего (верхнего) края видимой зоны, а не заранее.
+        const marginY = lineH;
+        const marginX = 60;
+
+        // вертикаль
+        const maxY = Math.max(0, view.contentHeight - view.height);
+        let targetY = view.contentY;
+        if (rect.y - marginY < view.contentY) {
+            targetY = rect.y - marginY;
+        } else if (rect.y + lineH + marginY > view.contentY + view.height) {
+            targetY = rect.y + lineH + marginY - view.height;
+        }
+        targetY = Math.max(0, Math.min(targetY, maxY));
+        if (Math.abs(targetY - view.contentY) > 0.5) view.contentY = targetY;
+
+        // горизонталь (нужно при длинных строках: wrapMode NoWrap)
+        if (view.contentWidth > view.width) {
+            const maxX = Math.max(0, view.contentWidth - view.width);
+            let targetX = view.contentX;
+            if (rect.x - marginX < view.contentX) {
+                targetX = rect.x - marginX;
+            } else if (rect.x + marginX > view.contentX + view.width) {
+                targetX = rect.x + marginX - view.width;
+            }
+            targetX = Math.max(0, Math.min(targetX, maxX));
+            if (Math.abs(targetX - view.contentX) > 0.5) view.contentX = targetX;
+        }
+    }
+
+    // Позиция конца строки (посре переноса) — для подсветки выбора.
     function lineEndPos(line) {
         const pos = root.lineStartPos(line);
         const nl = root.rawText.indexOf("\n", pos);
@@ -949,6 +987,7 @@ Item {
                                 }
                                 onCursorPositionChanged: {
                                     root.cursorLine = root.lineOfPosition(cursorPosition);
+                                    root.ensureCursorVisible();
                                 }
                             }
                         }
