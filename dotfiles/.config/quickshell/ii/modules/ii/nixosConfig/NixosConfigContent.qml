@@ -62,6 +62,17 @@ Item {
         ? 0
         : Math.max(40, editorFontMetrics.advanceWidth("0") * String(root.totalLines).length + 22)
 
+    // ---- подсказки при наборе ----
+    property var wordIndex: []          // слова из всех файлов конфига, по частоте
+    property bool indexReady: false
+    property string completionPrefix: ""
+    property var completionItems: []
+    property int completionIndex: 0
+    property string completionDismissed: ""
+    property bool completionManual: false // открыто по Ctrl+Space: стрелки листают список
+    property bool suppressCompletion: false
+    readonly property int completionMaxVisible: 8
+
     // Что показано в центральной области: 0 — редактор файла, 1 — панель сервиса.
     property int viewMode: 0
 
@@ -73,6 +84,22 @@ Item {
 
     Component.onCompleted: {
         root.refreshGit();
+        wordIndexer.running = true;
+    }
+
+    // Фоновая индексация слов по всему конфигу: ~0.3 с, UI не блокируется.
+    Process {
+        id: wordIndexer
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: root.applyIndex(text)
+        }
+        command: ["sh", "-c",
+            "grep -rhoE '[A-Za-z_][A-Za-z0-9_.-]{2,}'"
+            + " --include='*.nix' --include='*.qml' --include='*.js'"
+            + " --include='*.lua' --include='*.conf' --include='*.sh'"
+            + " --exclude-dir=.git " + root.configRoot
+            + " 2>/dev/null | sort | uniq -c | sort -rn | head -8000"]
     }
 
     function currentFilePath() {
@@ -314,6 +341,173 @@ Item {
     // Хлебные крошки: сегменты пути от корня конфига до файла. Если в
     // отведённую ширину не помещаются — оставляем хвост пути и ставим
     // многоточие вместо скрытого начала.
+    // ------------------------------------------------- подсказки при наборе
+    function currentExtension() {
+        const name = root.currentFile.split("/").pop() || "";
+        const dot = name.lastIndexOf(".");
+        return dot > 0 ? name.substring(dot + 1).toLowerCase() : "";
+    }
+
+    // Слово прямо перед курсором — по нему ищем подсказки.
+    function currentWordPrefix() {
+        if (!editor) return "";
+        const pos = Math.max(0, editor.cursorPosition);
+        const before = root.rawText.substring(Math.max(0, pos - 120), pos);
+        const match = before.match(/[A-Za-z_][A-Za-z0-9_.\-]*$/);
+        return match ? match[0] : "";
+    }
+
+    // Готовые заготовки под язык файла.
+    function snippetList(ext) {
+        if (ext === "nix") {
+            return [
+                { label: "packages", insert: "packages = with pkgs; [ " },
+                { label: "systemPackages", insert: "systemPackages = with pkgs; [ " },
+                { label: "homePackages", insert: "home.packages = with pkgs; [ " },
+                { label: "imports", insert: "imports = [ " },
+                { label: "mkIf", insert: "mkIf (cond) { }" },
+                { label: "mkMerge", insert: "mkMerge [ ]" },
+                { label: "mkOption", insert: "mkOption { type = null; default = null; }" },
+                { label: "mkEnableOption", insert: "mkEnableOption true" },
+                { label: "mkForce", insert: "lib.mkForce " },
+                { label: "mkDefault", insert: "lib.mkDefault " }
+            ];
+        }
+        if (ext === "qml") {
+            return [
+                { label: "Connections", insert: "Connections {\n    function onTriggered() {\n    }\n}" },
+                { label: "Repeater", insert: "Repeater {\n    model: []\n    delegate: null\n}" },
+                { label: "Timer", insert: "Timer {\n    interval: 1000\n    running: true\n    repeat: true\n    onTriggered: {\n    }\n}" },
+                { label: "MouseArea", insert: "MouseArea {\n    anchors.fill: parent\n    onClicked: {\n    }\n}" },
+                { label: "StyledText", insert: "StyledText {\n    color: Appearance.colors.colOnLayer1\n}" },
+                { label: "IconButton", insert: "IconButton {\n    iconText: \"\"\n    onClicked: {\n    }\n}" }
+            ];
+        }
+        if (ext === "lua") {
+            return [
+                { label: "bind", insert: "bind = MOD, KEY, func, {\n}" },
+                { label: "bindm", insert: "bindm = MOD, MOUSE, func, {\n}" },
+                { label: "workspace", insert: "workspace = 1, monitor:" },
+                { label: "monitor", insert: "monitor = , , , 1, transform = 0" }
+            ];
+        }
+        return [];
+    }
+
+    function collectCompletions(prefix) {
+        const items = [];
+        const lower = prefix.toLowerCase();
+        const limit = root.completionMaxVisible;
+
+        // 1) слова из индекса конфига, в порядке убывания частоты
+        let hits = 0;
+        const subs = [];
+        for (let i = 0; i < root.wordIndex.length && hits < 40; i++) {
+            const word = root.wordIndex[i];
+            const low = word.toLowerCase();
+            if (low === lower) continue;
+            if (low.startsWith(lower)) {
+                items.push({ label: word, insert: word, hint: "", isSnippet: false });
+                hits++;
+            } else if (subs.length < 6 && word.length > lower.length + 2 && low.includes(lower)) {
+                subs.push({ label: word, insert: word, hint: "", isSnippet: false });
+            }
+        }
+        for (const sub of subs) items.push(sub);
+
+        // 2) заготовки по расширению файла
+        for (const snip of root.snippetList(root.currentExtension())) {
+            if (snip.label.toLowerCase().startsWith(lower)) {
+                items.push({
+                    label: snip.label,
+                    insert: snip.insert,
+                    hint: Translation.tr("snippet"),
+                    isSnippet: true
+                });
+            }
+        }
+        return items.slice(0, limit);
+    }
+
+    function updateCompletion() {
+        if (root.suppressCompletion) {
+            root.completionItems = [];
+            return;
+        }
+        if (!editor || root.viewMode !== 0) {
+            root.completionItems = [];
+            return;
+        }
+        const prefix = root.currentWordPrefix();
+        root.completionPrefix = prefix;
+        if (prefix.length < 2 || root.completionDismissed === prefix) {
+            root.completionItems = [];
+            return;
+        }
+        const items = root.collectCompletions(prefix);
+        root.completionItems = items;
+        root.completionIndex = 0;
+    }
+
+    function acceptCompletion(item) {
+        const chosen = item || root.completionItems[root.completionIndex];
+        if (!chosen || !editor) return;
+        const pos = editor.cursorPosition;
+        const start = Math.max(0, pos - root.completionPrefix.length);
+        const insert = chosen.insert;
+        // TextEdit.insert() в этой сборке Qt не работает — правим текст сами.
+        root.suppressCompletion = true;
+        editor.text = root.rawText.substring(0, start) + insert + root.rawText.substring(pos);
+        editor.cursorPosition = start + insert.length;
+        editor.forceActiveFocus();
+        root.suppressCompletion = false;
+        root.completionItems = [];
+        root.completionManual = false;
+        // чтобы список не выскочил сразу же на только что вставленное слово
+        root.completionDismissed = root.currentWordPrefix();
+    }
+
+    function toggleCompletion() {
+        if (root.completionItems.length > 0) {
+            root.completionItems = [];
+            root.completionManual = false;
+            return;
+        }
+        const prefix = root.currentWordPrefix();
+        if (prefix.length < 1) return;
+        root.completionDismissed = "";
+        root.completionManual = true;
+        const items = root.collectCompletions(prefix);
+        root.completionPrefix = prefix;
+        root.completionItems = items;
+        root.completionIndex = 0;
+    }
+
+    function closeCompletion() {
+        if (root.completionPrefix.length > 0) root.completionDismissed = root.completionPrefix;
+        root.completionItems = [];
+        root.completionManual = false;
+    }
+
+    function moveCompletion(step) {
+        const count = root.completionItems.length;
+        if (count === 0) return;
+        root.completionIndex = (root.completionIndex + step + count) % count;
+    }
+
+    // Результат фонового grep: "частота слово" -> просто слова.
+    function applyIndex(text) {
+        const out = [];
+        const lines = (text || "").split("\n");
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            const space = line.indexOf(" ");
+            if (space > 0) out.push(line.substring(space + 1));
+        }
+        root.wordIndex = out;
+        root.indexReady = true;
+    }
+
     function buildCrumbs(availWidth) {
         const out = [];
         if (root.currentFile.length === 0) return out;
@@ -1022,10 +1216,20 @@ Item {
                                         if (editor.text !== root.rawText) root.rawText = editor.text;
                                     }
                                     root.cursorLine = root.lineOfPosition(cursorPosition);
+                                    // cursorPosition ещё старый: пересчёт после
+                                    // того, как курсор встанет на место.
+                                    Qt.callLater(root.updateCompletion);
                                 }
                                 onCursorPositionChanged: {
                                     root.cursorLine = root.lineOfPosition(cursorPosition);
                                     root.ensureCursorVisible();
+                                    root.updateCompletion();
+                                }
+                                onActiveFocusChanged: {
+                                    if (!activeFocus) {
+                                        root.completionItems = [];
+                                        root.completionManual = false;
+                                    }
                                 }
                             }
                         }
@@ -1202,6 +1406,149 @@ Item {
                                         .arg(root.totalLines)
                                 }
                             }
+                        }
+
+                        // Подсказки при наборе: список под курсором. Открывается сам
+                        // по набранному префиксу (2+ символа), Enter вставляет,
+                        // Esc скрывает до смены слова. По Ctrl+Space включается
+                        // ручной режим, где стрелки листают список.
+                        Rectangle {
+                            id: completionPopup
+                            visible: root.completionItems.length > 0 && root.viewMode === 0
+                            width: 440
+                            height: Math.min(root.completionItems.length, root.completionMaxVisible) * 28
+                                + (root.completionItems.length > 0 ? 30 : 0)
+                            radius: contentBackground.radius - 6
+                            color: Appearance.colors.colLayer0
+                            border {
+                                width: 1
+                                // у группы border нет opacity — задаём alpha в цвете
+                                color: Qt.rgba(
+                                    Appearance.colors.colOnLayer1.r,
+                                    Appearance.colors.colOnLayer1.g,
+                                    Appearance.colors.colOnLayer1.b,
+                                    0.15)
+                            }
+                            z: 50
+                            x: Math.max(2, Math.min(
+                                editor.cursorRectangle.x - editorScrollView.contentX,
+                                editorBackground.width - width - 2))
+                            y: {
+                                const below = editor.cursorRectangle.y - editorScrollView.contentY
+                                    + root.lineAdvance + 4;
+                                const fits = below + height < editorBackground.height - 2;
+                                return Math.max(2, fits
+                                    ? below
+                                    : (editor.cursorRectangle.y - editorScrollView.contentY - height - 4));
+                            }
+
+                            Column {
+                                anchors {
+                                    left: parent.left
+                                    right: parent.right
+                                    top: parent.top
+                                    margins: 4
+                                }
+                                spacing: 0
+
+                                Repeater {
+                                    model: root.completionItems.slice(0, root.completionMaxVisible)
+                                    delegate: Rectangle {
+                                        id: completionRow
+                                        required property var modelData
+                                        required property int index
+                                        width: completionPopup.width - 8
+                                        height: 28
+                                        radius: 6
+                                        color: index === root.completionIndex
+                                            ? Qt.rgba(
+                                                Appearance.colors.colPrimary.r,
+                                                Appearance.colors.colPrimary.g,
+                                                Appearance.colors.colPrimary.b,
+                                                0.28)
+                                            : "transparent"
+
+                                        StyledText {
+                                            id: completionLabel
+                                            anchors {
+                                                left: parent.left
+                                                right: completionHint.left
+                                                leftMargin: 8
+                                                rightMargin: 6
+                                                verticalCenter: parent.verticalCenter
+                                            }
+                                            font {
+                                                family: Appearance.font.family.monospace
+                                                pixelSize: Appearance.font.pixelSize.smallie
+                                            }
+                                            elide: Text.ElideRight
+                                            color: Appearance.colors.colOnLayer1
+                                            text: completionRow.modelData.label
+                                        }
+
+                                        StyledText {
+                                            id: completionHint
+                                            anchors {
+                                                right: parent.right
+                                                rightMargin: 8
+                                                verticalCenter: parent.verticalCenter
+                                            }
+                                            font.pixelSize: Appearance.font.pixelSize.smallest
+                                            color: Appearance.colors.colOnLayer1
+                                            opacity: 0.5
+                                            text: completionRow.modelData.hint
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            onEntered: root.completionIndex = completionRow.index
+                                            onClicked: {
+                                                root.completionManual = false;
+                                                root.acceptCompletion(completionRow.modelData);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                StyledText { // подсказка про клавиши
+                                    width: completionPopup.width - 16
+                                    height: 22
+                                    horizontalAlignment: Text.AlignRight
+                                    rightPadding: 6
+                                    font.pixelSize: Appearance.font.pixelSize.smallest
+                                    color: Appearance.colors.colOnLayer1
+                                    opacity: 0.45
+                                    text: root.completionManual
+                                        ? Translation.tr("↑↓ — select, Enter — insert, Esc — hide")
+                                        : Translation.tr("Enter — insert, Esc — hide")
+                                }
+                            }
+                        }
+
+                        Shortcut {
+                            sequences: ["Ctrl+Space"]
+                            onActivated: root.toggleCompletion()
+                        }
+                        Shortcut {
+                            sequence: "Return"
+                            enabled: root.completionItems.length > 0
+                            onActivated: root.acceptCompletion()
+                        }
+                        Shortcut {
+                            sequence: "Escape"
+                            enabled: root.completionItems.length > 0
+                            onActivated: root.closeCompletion()
+                        }
+                        Shortcut {
+                            sequences: ["Down"]
+                            enabled: root.completionManual && root.completionItems.length > 0
+                            onActivated: root.moveCompletion(1)
+                        }
+                        Shortcut {
+                            sequences: ["Up"]
+                            enabled: root.completionManual && root.completionItems.length > 0
+                            onActivated: root.moveCompletion(-1)
                         }
 
                         // Панель сервиса занимает ту же область, что и редактор:

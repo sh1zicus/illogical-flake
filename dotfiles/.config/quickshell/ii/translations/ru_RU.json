@@ -838,5 +838,8 @@
   "Commits ahead of upstream": "Коммитов впереди upstream",
   "Commits behind upstream": "Коммитов позади upstream",
   "clean": "чисто",
-  "Line %1 of %2": "Строка %1 из %2"
+  "Line %1 of %2": "Строка %1 из %2",
+  "snippet": "сниппет",
+  "Enter — insert, Esc — hide": "Enter — вставить, Esc — скрыть",
+  "↑↓ — select, Enter — insert, Esc — hide": "↑↓ — выбрать, Enter — вставить, Esc — скрыть"
 }

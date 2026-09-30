@@ -691,5 +691,8 @@
   "Commits ahead of upstream": "Commits ahead of upstream",
   "Commits behind upstream": "Commits behind upstream",
   "clean": "clean",
-  "Line %1 of %2": "Line %1 of %2"
+  "Line %1 of %2": "Line %1 of %2",
+  "snippet": "snippet",
+  "Enter — insert, Esc — hide": "Enter — insert, Esc — hide",
+  "↑↓ — select, Enter — insert, Esc — hide": "↑↓ — select, Enter — insert, Esc — hide"
 }
