@@ -395,30 +395,34 @@ Item {
     }
 
     function collectCompletions(prefix) {
-        const items = [];
         const lower = prefix.toLowerCase();
-        const limit = root.completionMaxVisible;
-
-        // 1) слова из индекса конфига, в порядке убывания частоты
-        let hits = 0;
+        const top = [];
+        const rest = [];
         const subs = [];
-        for (let i = 0; i < root.wordIndex.length && hits < 40; i++) {
+
+        // слова из индекса конфига, в порядке убывания частоты
+        for (let i = 0; i < root.wordIndex.length && top.length < 24; i++) {
             const word = root.wordIndex[i];
             const low = word.toLowerCase();
             if (low === lower) continue;
             if (low.startsWith(lower)) {
-                items.push({ label: word, insert: word, hint: "", isSnippet: false });
-                hits++;
+                (top.length < 6 ? top : rest).push({
+                    label: word,
+                    insert: word,
+                    hint: "",
+                    isSnippet: false
+                });
             } else if (subs.length < 6 && word.length > lower.length + 2 && low.includes(lower)) {
                 subs.push({ label: word, insert: word, hint: "", isSnippet: false });
             }
         }
-        for (const sub of subs) items.push(sub);
 
-        // 2) заготовки по расширению файла
+        // заготовки по расширению файла — сразу после самых частых слов,
+        // иначе они вытеснялись списком подсказок и их не было видно
+        const snippets = [];
         for (const snip of root.snippetList(root.currentExtension())) {
             if (snip.label.toLowerCase().startsWith(lower)) {
-                items.push({
+                snippets.push({
                     label: snip.label,
                     insert: snip.insert,
                     hint: Translation.tr("snippet"),
@@ -426,7 +430,7 @@ Item {
                 });
             }
         }
-        return items.slice(0, limit);
+        return top.concat(snippets, rest, subs).slice(0, 24);
     }
 
     function updateCompletion() {
@@ -1452,13 +1456,20 @@ Item {
                                 spacing: 0
 
                                 Repeater {
-                                    model: root.completionItems.slice(0, root.completionMaxVisible)
+                                    // весь список, но видны только 8 строк вокруг
+                                    // выбранного — так можно доскроллить до любого
+                                    model: root.completionItems
                                     delegate: Rectangle {
                                         id: completionRow
                                         required property var modelData
                                         required property int index
                                         width: completionPopup.width - 8
                                         height: 28
+                                        readonly property int windowStart: Math.max(0,
+                                            Math.min(root.completionIndex - root.completionMaxVisible + 1,
+                                                Math.max(0, root.completionItems.length - root.completionMaxVisible)))
+                                        visible: index >= windowStart
+                                            && index < windowStart + root.completionMaxVisible
                                         radius: 6
                                         color: index === root.completionIndex
                                             ? Qt.rgba(
@@ -1519,9 +1530,10 @@ Item {
                                     font.pixelSize: Appearance.font.pixelSize.smallest
                                     color: Appearance.colors.colOnLayer1
                                     opacity: 0.45
-                                    text: root.completionManual
-                                        ? Translation.tr("↑↓ — select, Enter — insert, Esc — hide")
-                                        : Translation.tr("Enter — insert, Esc — hide")
+                                    text: `${root.completionIndex + 1}/${root.completionItems.length} · `
+                                        + (root.completionManual
+                                            ? Translation.tr("↑↓ — select, Enter — insert, Esc — hide")
+                                            : Translation.tr("Enter — insert, Esc — hide"))
                                 }
                             }
                         }
@@ -1548,6 +1560,18 @@ Item {
                         Shortcut {
                             sequences: ["Up"]
                             enabled: root.completionManual && root.completionItems.length > 0
+                            onActivated: root.moveCompletion(-1)
+                        }
+                        // в авторежиме стрелки остаются у текста, поэтому выбор
+                        // варианта — на Ctrl+стрелки
+                        Shortcut {
+                            sequences: ["Ctrl+Down"]
+                            enabled: root.completionItems.length > 0
+                            onActivated: root.moveCompletion(1)
+                        }
+                        Shortcut {
+                            sequences: ["Ctrl+Up"]
+                            enabled: root.completionItems.length > 0
                             onActivated: root.moveCompletion(-1)
                         }
 
