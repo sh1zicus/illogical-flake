@@ -879,8 +879,13 @@ Item {
                                 y: Math.max(0, editor.cursorRectangle.y)
                                 width: Math.max(editorScrollView.contentWidth, editorScrollView.width)
                                 height: root.lineAdvance
-                                color: Appearance.colors.colLayer1Hover
-                                opacity: 0.35
+                                // Заметная, но не кричащая: серый слой светлой темы +
+                                // лёгкий оттенок основного цвета темы.
+                                color: ColorUtils.mix(
+                                    Appearance.colors.colLayer1Hover,
+                                    Appearance.colors.colPrimary,
+                                    0.15)
+                                opacity: 0.6
                             }
 
                             // Always-on syntax highlight via two stacked TextEdit
