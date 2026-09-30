@@ -3,8 +3,11 @@
 { config, lib, pkgs, ... }:
 
 {
-  # Flatpak: portable sandboxed apps from Flathub.
+  # Flatpak: удалён — PortProton/Bottles теперь ставятся из nix.
   services.flatpak.enable = false;
+  # Одноразовая зачистка осиротевших данных (3.9G в /var/lib/flatpak):
+  # вытирается при старте, пока flatpak снова не включён.
+  systemd.tmpfiles.rules = [ "R /var/lib/flatpak" ];
 
   # Btrfs scrub: периодическая проверка контрольных сумм — раннее обнаружение
   # повреждений файловой системы / битых секторов диска.
@@ -24,12 +27,27 @@
   # Сетевой и дисковый тюнинг ядра: ниже латенси под нагрузкой, меньше
   # стука по диску при фоновой записи (без фризов FPS).
   boot.kernel.sysctl = {
+    # zram (8 GiB) уже имеет наивысший приоритет, поэтому при нехватке
+    # памяти страницы уходят в сжатый RAM, а не на SSD. Низкая
+    # swappiness держит page cache в памяти — это важнее для игр.
     "vm.swappiness" = 10;
     "vm.dirty_ratio" = 10;
     "vm.dirty_background_ratio" = 2;
+    # Меньше вытеснения page cache: иначе ассеты игры вытесняются в btrfs
+    # и потом перечитываются — лишняя синхронная запись под игрой.
+    "vm.vfs_cache_pressure" = 50;
+    # Java + Wine активно мапят память; дефолтных 65530 может не хватить.
+    "vm.max_map_count" = 262144;
     "net.ipv4.tcp_congestion_control" = "bbr";
     "net.core.default_qdisc" = "fq";
   };
+
+  # Планировщик ввода-вывода: mq-deadline → kyber (ниже латентность
+  # случайных чтений ассетов игры). Применяется при ресиде юнита
+  # или после `udevadm trigger --action=change` для sd*.
+  services.udev.extraRules = ''
+    ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/scheduler}="kyber"
+  '';
 
   # systemd-oomd: при нехватке памяти корректно гасит проблемный процесс
   # вместо зависания всей системы.

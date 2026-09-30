@@ -30,14 +30,8 @@ in
       done
     '')
 
-    # Полная сборка Wine с поддержкой 64-битных префиксов (wine из 32-битной
-    # сборки не может запустить 64-битный клиент Stalcraft/Stalzone).
-    winePackages.stableFull
-
     # PortProton — графический лаунчер Wine/Proton для Windows-игр. Тянет СВОЙ
-    # wine/proton внутри bwrap-песочницы, поэтому дублирует winePackages выше.
-    # Оба нужны: системный wine = прямой запуск клиентов/игр (Stalcraft),
-    # portproton = остальные Windows-игры через GUI-лаунчер.
+    # wine/proton внутри bwrap-песочницы.
     portproton
 
     # NixOS Configuration Editor — графическое редактирование NixOS-конфига.

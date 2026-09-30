@@ -19,12 +19,18 @@ Rectangle {
     onQueryChanged: root.refreshFilter()
     property var pkgRows: []
     property var pkgModel: []
-    property var serviceRows: []
+    property var serviceRows: []   // отфильтрованные (видно в списке)
+    property var allServiceRows: [] // полный список до фильтрации
     property var runningRows: []
     property var configServiceRows: []
 
     // Клик по пакету в списке: открыть файл конфига на нужной строке.
     signal packageClicked(string path, int line)
+
+    // Клик по сервису: открыть панель systemd-юнита (статус + логи).
+    // scope: "user" | "system" | "config"; path/line — место в nix-конфиге,
+    // если сервис оттуда (для кнопки "Open in config").
+    signal serviceClicked(string unit, string scope, string path, int line)
 
     Component.onCompleted: {
         root.refreshPackages();
@@ -76,6 +82,16 @@ Rectangle {
             ? root.pkgRows
             : root.pkgRows.filter(pkg =>
                 (pkg.attr + " " + pkg.file).toLowerCase().includes(q));
+        root.serviceRows = q.length === 0
+            ? root.allServiceRows
+            : root.allServiceRows.filter(svc =>
+                (svc.unit + " " + svc.desc + " " + (svc.file ?? ""))
+                    .toLowerCase().includes(q));
+    }
+
+    function clearSearch() {
+        searchField.text = "";
+        root.query = "";
     }
 
     function pkgCount(source) {
@@ -155,7 +171,8 @@ Rectangle {
         const rows = root.configServiceRows.concat(root.runningRows);
         rows.sort((a, b) =>
             (pri[a.group] - pri[b.group]) || a.unit.localeCompare(b.unit, "en"));
-        root.serviceRows = rows;
+        root.allServiceRows = rows;
+        root.refreshFilter();
     }
 
     function svcCount(group) {
@@ -165,6 +182,27 @@ Rectangle {
     function refreshServices() {
         servicesProc.running = true;
         configServicesProc.running = true;
+    }
+
+    // Клик по строке сервиса. Для сервисов из nix-конфига (`services.foo`,
+    // `systemd.services.bar`) имени юнита может не быть в списке running —
+    // ищем совпадение по basename среди запущенных, иначе отдаём имя как есть
+    // (панель сама покажет «not found» и кнопку перехода в конфиг).
+    function emitService(row) {
+        if (row.group === "config") {
+            const wanted = row.unit;
+            const match = root.runningRows.find(svc =>
+                svc.unit === wanted
+                || svc.unit === wanted + ".service"
+                || svc.unit.replace(/\.service$/, "") === wanted);
+            if (match) {
+                root.serviceClicked(match.unit, match.group, row.path, row.line);
+            } else {
+                root.serviceClicked(wanted, "config", row.path, row.line);
+            }
+            return;
+        }
+        root.serviceClicked(row.unit, row.group, "", 0);
     }
 
     // ------------------------------------------------------------- ui
@@ -195,7 +233,9 @@ Rectangle {
                     weight: Font.Medium
                 }
                 color: Appearance.colors.colOnLayer1
-                text: root.selectedTab === 0 ? "Packages from config" : "Services (config + running)"
+                text: root.selectedTab === 0
+                    ? Translation.tr("Packages")
+                    : Translation.tr("Services")
             }
             IconToolbarButton { // refresh
                 id: reloadBtn
@@ -209,7 +249,7 @@ Rectangle {
                     if (root.selectedTab === 0) root.refreshPackages();
                     else root.refreshServices();
                 }
-                StyledToolTip { text: "Reload" }
+                StyledToolTip { text: Translation.tr("Reload") }
             }
             Rectangle { // count chip
                 radius: height / 2
@@ -222,8 +262,8 @@ Rectangle {
                     font.pixelSize: Appearance.font.pixelSize.smallest
                     color: Appearance.colors.colOnSecondaryContainer
                     text: root.selectedTab === 0
-                        ? `${root.pkgRows.length} pkgs`
-                        : `${root.serviceRows.length} services`
+                        ? Translation.tr("%1 pkgs").arg(root.pkgRows.length)
+                        : Translation.tr("%1 services").arg(root.serviceRows.length)
                 }
             }
             IconToolbarButton { // close window
@@ -234,7 +274,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignVCenter
                 text: "close"
                 onClicked: GlobalStates.nixosConfigOpen = false
-                StyledToolTip { text: "Close" }
+                StyledToolTip { text: Translation.tr("Close") }
             }
         }
 
@@ -245,15 +285,19 @@ Rectangle {
             spacing: 4
 
             TabChip {
-                text: "Packages"
+                text: Translation.tr("Packages")
                 active: root.selectedTab === 0
-                onClicked: root.selectedTab = 0
+                onClicked: {
+                    root.selectedTab = 0;
+                    root.clearSearch();
+                }
             }
             TabChip {
-                text: "Services"
+                text: Translation.tr("Services")
                 active: root.selectedTab === 1
                 onClicked: {
                     root.selectedTab = 1;
+                    root.clearSearch();
                     root.refreshServices();
                 }
             }
@@ -262,13 +306,15 @@ Rectangle {
             }
         }
 
-        MaterialTextField { // search
+        ToolbarTextField { // search
             id: searchField
-            visible: root.selectedTab === 0
             Layout.fillWidth: true
-            Layout.preferredHeight: 40
-            Layout.maximumHeight: 44
-            placeholderText: "Search packages…"
+            Layout.preferredHeight: 36
+            Layout.maximumHeight: 36
+            Layout.minimumHeight: 36
+            placeholderText: root.selectedTab === 0
+                ? Translation.tr("Search packages…")
+                : Translation.tr("Search services…")
             onTextChanged: root.query = text
         }
 
@@ -292,7 +338,7 @@ Rectangle {
                 delegate: MouseArea {
                     required property var modelData
                     width: pkgList.width
-                    height: 32
+                    height: 30
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
 
@@ -320,20 +366,25 @@ Rectangle {
                         }
                         spacing: 6
 
-                        Rectangle { // source badge
-                            width: 16
+                        Item { // marker column: 20px, как у служб
+                            width: 20
                             height: 16
-                            radius: 4
-                            color: modelData.source === "system"
-                                ? Appearance.colors.colSecondaryContainer
-                                : Appearance.colors.colTertiaryContainer
-                            StyledText {
+                            Rectangle { // source badge
                                 anchors.centerIn: parent
-                                font.pixelSize: Appearance.font.pixelSize.smallest
+                                width: 16
+                                height: 16
+                                radius: 4
                                 color: modelData.source === "system"
-                                    ? Appearance.colors.colOnSecondaryContainer
-                                    : Appearance.colors.colOnTertiaryContainer
-                                text: modelData.kind
+                                    ? Appearance.colors.colSecondaryContainer
+                                    : Appearance.colors.colTertiaryContainer
+                                StyledText {
+                                    anchors.centerIn: parent
+                                    font.pixelSize: Appearance.font.pixelSize.smallest
+                                    color: modelData.source === "system"
+                                        ? Appearance.colors.colOnSecondaryContainer
+                                        : Appearance.colors.colOnTertiaryContainer
+                                    text: modelData.kind
+                                }
                             }
                         }
                         StyledText {
@@ -360,7 +411,7 @@ Rectangle {
                 anchors.centerIn: parent
                 visible: root.selectedTab === 0 && root.pkgModel.length === 0
                 color: Appearance.m3colors.m3outline
-                text: "No packages"
+                text: Translation.tr("No packages")
             }
 
             ListView { // services
@@ -384,13 +435,14 @@ Rectangle {
                         }
                         spacing: 6
                         StyledText {
-                            anchors.left: parent.left
-                            anchors.leftMargin: 2
                             font.pixelSize: Appearance.font.pixelSize.smallest
-                            color: Appearance.m3colors.m3outline
+                            color: Appearance.colors.colOnLayer1
+                            opacity: 0.85
                             text: section === "config"
-                                ? "From config"
-                                : (section === "user" ? "User running" : "System running")
+                                ? Translation.tr("From config")
+                                : (section === "user"
+                                    ? Translation.tr("User running")
+                                    : Translation.tr("System running"))
                         }
                         Item {
                             Layout.fillWidth: true
@@ -412,21 +464,25 @@ Rectangle {
                 }
                 delegate: Item {
                     required property var modelData
+                    width: servicesList.width
                     implicitHeight: 30
 
                     MouseArea {
+                        id: svcMouse
                         anchors.fill: parent
-                        enabled: modelData.group === "config"
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            console.log("[sidebarDBG] svc click", modelData.path, modelData.line);
-                            root.packageClicked(modelData.path, modelData.line);
+                            console.log("[sidebarDBG] svc click", modelData.unit, modelData.group);
+                            root.emitService(modelData);
                         }
                         Rectangle { // hover bg
                             anchors.fill: parent
                             radius: 6
-                            color: modelData.group === "config" && containsMouse
+                            Behavior on color {
+                                ColorAnimation { duration: 100 }
+                            }
+                            color: svcMouse.containsMouse
                                 ? Appearance.colors.colLayer2
                                 : "transparent"
                         }
@@ -506,7 +562,9 @@ Rectangle {
                 anchors.centerIn: parent
                 visible: root.selectedTab === 1 && root.serviceRows.length === 0
                 color: Appearance.m3colors.m3outline
-                text: "Loading services…"
+                text: root.query.trim().length > 0
+                    ? Translation.tr("Nothing found")
+                    : Translation.tr("Loading services…")
             }
         }
     }
@@ -549,7 +607,7 @@ Rectangle {
     }
 
     component PkgSectionHeader: Item {
-        implicitHeight: 24
+        implicitHeight: 26
         width: pkgList.width
 
         RowLayout {
@@ -565,8 +623,8 @@ Rectangle {
                 color: Appearance.colors.colOnLayer1
                 opacity: 0.85
                 text: section === "system"
-                    ? "System — environment.systemPackages"
-                    : "Home — home.packages"
+                    ? Translation.tr("System — environment.systemPackages")
+                    : Translation.tr("Home — home.packages")
             }
             Item {
                 Layout.fillWidth: true

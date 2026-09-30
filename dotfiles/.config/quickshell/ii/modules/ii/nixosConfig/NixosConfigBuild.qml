@@ -1,4 +1,5 @@
 import qs
+import qs.services
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -22,7 +23,7 @@ Singleton {
     function performBuild(full) {
         root.logText = "";
         root.lastBuildExit = null;
-        root.statusHint = "пересборка запущена…";
+        root.statusHint = Translation.tr("rebuild started…");
         const script = full ? "./update.sh" : "./update.sh --quick";
         buildProc.command = [
             "pkexec",
@@ -42,7 +43,7 @@ Singleton {
     function cancelBuild() {
         if (buildProc.running) {
             buildProc.signal(15);
-            root.statusHint = "прерываю пересборку (SIGTERM)...";
+            root.statusHint = Translation.tr("stopping rebuild (SIGTERM)…");
         }
     }
 
@@ -56,8 +57,8 @@ Singleton {
             root.building = false;
             root.lastBuildExit = exitCode;
             root.statusHint = exitCode === 0
-                ? "пересборка завершена успешно"
-                : `пересборка завершилась с ошибкой (${exitCode})`;
+                ? Translation.tr("rebuild finished successfully")
+                : Translation.tr("rebuild failed with error (%1)").arg(exitCode);
             root.buildFinished(exitCode);
         }
     }

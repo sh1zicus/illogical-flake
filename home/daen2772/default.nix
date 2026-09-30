@@ -3,7 +3,7 @@
   # Каждое приложение/область вынесено в отдельный файл в этой папке.
   imports = [
     ./illogical.nix   # end-4 (Illogical Impulse) dotfiles
-    ./apps.nix        # пользовательские приложения (bottles, ...)
+    ./apps.nix        # пользовательские приложения
     ./shell.nix       # fish, starship, ... (по мере надобности)
   ];
 

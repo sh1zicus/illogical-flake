@@ -48,10 +48,37 @@ let
     # URL API; логин обязателен, но любое значение отдаёт полный общий список.
     url="${cfg.apiBase}?login=${lib.escapeShellArg cfg.login}"
 
+    # Скачиваем во временный файл и подменяем кэш только при успехе, чтобы
+    # неудачный запрос не оставлял обрезанный/битый JSON.
+    tmpFile="${stateDir}/address_list.json.tmp"
+
     # -k: на этой машине TLS-сертификат не проходит проверку из-за MITM
     # (WARP/zapret); см. services.stalzone-blocker.tlsVerify.
-    ${if cfg.tlsVerify then "curl -sSL --fail" else "curl -skSL --fail"} \
-      "$url" -o "${jsonFile}"
+    #
+    # Юнит ходит в сеть на каждой загрузке и при каждом nixos-rebuild switch,
+    # поэтому недоступность API (5xx, таймаут) НЕ должна валить юнит: иначе
+    # switch-to-configuration падает с exit 4 и система не переключается.
+    # При ошибке работаем с прошлым кэшем, а если его нет — просто выходим.
+    if ${if cfg.tlsVerify then "curl -sSL --fail" else "curl -skSL --fail"} \
+      --retry 3 --retry-delay 5 --retry-all-errors \
+      --connect-timeout 15 --max-time 120 \
+      "$url" -o "$tmpFile"; then
+      mv -f "$tmpFile" "${jsonFile}"
+    else
+      rm -f "$tmpFile"
+      if [ -s "${jsonFile}" ]; then
+        echo "stalzone-blocker: API недоступен, использую кэш ${jsonFile}" >&2
+      else
+        echo "stalzone-blocker: API недоступен и кэша нет, список не обновлён" >&2
+        exit 0
+      fi
+    fi
+
+    # Кэш должен оставаться валидным JSON, иначе jq ниже уронит юнит.
+    if ! jq -e . "${jsonFile}" >/dev/null 2>&1; then
+      echo "stalzone-blocker: ${jsonFile} не является валидным JSON, список не обновлён" >&2
+      exit 0
+    fi
 
     # Извлекаем IP: либо только выбранные пулы (pools), либо все, либо все
     # кроме excludePools (когда pools = []).
@@ -96,11 +123,15 @@ let
     } > "${nftScript}"
 
     # Применяем атомарно: удаляем прошлую таблицу, если есть, затем грузим новую.
-    nft -f "${nftScript}" || {
-      # на случай, если таблица уже существует — пересоздаём
+    # Ошибка nft тоже не должна ронять юнит (иначе опять сломается switch) —
+    # старая таблица при этом остаётся активной.
+    if ! nft -f "${nftScript}"; then
       nft delete table inet stalzone_blocker 2>/dev/null || true
-      nft -f "${nftScript}"
-    }
+      if ! nft -f "${nftScript}"; then
+        echo "stalzone-blocker: не удалось применить правила nftables" >&2
+        exit 0
+      fi
+    fi
   '';
 in
 {

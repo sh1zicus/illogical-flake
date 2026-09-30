@@ -17,7 +17,6 @@ hl.env("XDG_DATA_DIRS",
     ":" .. home_dir .. "/.nix-profile/share" ..
     ":/etc/profiles/per-user/" .. user .. "/share" ..
     ":/run/current-system/sw/share" ..
-    ":/var/lib/flatpak/exports/share" ..
     ":/usr/local/share:/usr/share:" .. xdg_data_dirs_old)
 
 -- Themes

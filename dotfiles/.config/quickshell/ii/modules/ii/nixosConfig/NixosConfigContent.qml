@@ -38,9 +38,18 @@ Item {
     property string rawText: "" // plain file content (edit) | highlighted HTML is derived from it
     property bool syncingText: false // true while applyEditorText() pushes programmatic text
     property int dirtyCount: 0
+    // Компактная сводка git внизу дерева файлов.
+    property int stagedCount: 0
+    property int modifiedCount: 0
+    property int untrackedCount: 0
+    property int aheadCount: 0
+    property int behindCount: 0
     property int pendingLine: 0 // line to jump to after the file finishes loading
     property int tabSize: 4 // spaces shown for each tab, must match the highlight layer
-    readonly property real tabWidth: editorFontMetrics.horizontalAdvance(" ") * root.tabSize
+    readonly property real tabWidth: editorFontMetrics.advanceWidth(" ") * root.tabSize
+
+    // Что показано в центральной области: 0 — редактор файла, 1 — панель сервиса.
+    property int viewMode: 0
 
     property var allRows: []
     property var treeRows: []
@@ -66,11 +75,14 @@ Item {
         const lines = text.split("\n");
         const lsIdx = lines.indexOf("__LS__");
         const brIdx = lines.indexOf("__BR__");
+        const abIdx = lines.indexOf("__AB__");
         const statusMap = {};
         const ls = [];
         const statusBlock = lsIdx === -1 ? [] : lines.slice(0, lsIdx);
         const lsBlock = (lsIdx !== -1 && brIdx !== -1) ? lines.slice(lsIdx + 1, brIdx) : [];
-        const brBlock = brIdx === -1 ? [] : lines.slice(brIdx + 1);
+        const brBlock = (brIdx !== -1 && abIdx !== -1) ? lines.slice(brIdx + 1, abIdx)
+            : (brIdx === -1 ? [] : lines.slice(brIdx + 1));
+        const abBlock = abIdx === -1 ? [] : lines.slice(abIdx + 1);
 
         for (const line of statusBlock) {
             if (line.replace(/\s/g, "").length === 0) continue;
@@ -95,11 +107,27 @@ Item {
         root.allRows = root.buildTree(nixOnly, statusMap);
         root.applyFilter();
         let dirty = 0;
-        for (const line of statusBlock) { if (line.trim().length > 0) dirty++; }
+        let staged = 0;
+        let modified = 0;
+        let untracked = 0;
+        for (const line of statusBlock) {
+            if (line.trim().length === 0) continue;
+            dirty++;
+            const code = line.substring(0, 2);
+            if (code === "??" || code[0] === "?") { untracked++; continue; }
+            if (code[0] !== " ") staged++;
+            if (code[1] !== " ") modified++;
+        }
         root.dirtyCount = dirty;
+        root.stagedCount = staged;
+        root.modifiedCount = modified;
+        root.untrackedCount = untracked;
+        const nums = abBlock.filter((l) => /^\d+$/.test(l.trim()));
+        root.aheadCount = nums.length > 0 ? parseInt(nums[0], 10) : 0;
+        root.behindCount = nums.length > 1 ? parseInt(nums[1], 10) : 0;
         root.statusHint = root.dirtyCount > 0
-            ? `${root.dirtyCount} изменённых файлов в git`
-            : `конфиг чист, ветка ${root.branch}`;
+            ? Translation.tr("%1 changed files in git").arg(root.dirtyCount)
+            : Translation.tr("config is clean, branch %1").arg(root.branch);
     }
 
     function buildTree(paths, statusMap) {
@@ -176,13 +204,29 @@ Item {
         root.currentFile = path;
         root.fileDirty = false;
         root.loading = true;
+        root.viewMode = 0;
         configFileView.path = root.currentFilePath();
+    }
+
+    function showFile() {
+        root.viewMode = 0;
+    }
+
+    // Открыть systemd-сервис в панели вместо редактора.
+    function openService(unit, scope, path, line) {
+        servicePanel.stopLive();
+        servicePanel.unit = unit;
+        servicePanel.scope = scope;
+        servicePanel.configPath = path ?? "";
+        servicePanel.configLine = line ?? 0;
+        root.viewMode = 1;
     }
 
     // Открыть файл (из правой панели с пакетами) и промотать редактор к строке.
     function openPackage(path, line) {
         console.log("[nixosConfig] openPackage", path, line);
         if (root.currentFile === path) {
+            root.viewMode = 0;
             Qt.callLater(() => root.scrollToLine(line));
             return;
         }
@@ -240,7 +284,7 @@ Item {
         if (root.currentFile.length === 0) return;
         configFileView.setText(root.rawText);
         root.fileDirty = false;
-        root.statusHint = `сохраняю ${root.currentFile}...`;
+        root.statusHint = Translation.tr("saving %1…").arg(root.currentFile);
     }
 
     // Push the current file contents into the editor. The editor always keeps
@@ -420,7 +464,9 @@ Item {
                 // ------------------------------------------------- tree
                 Rectangle {
                     id: treeRect
-                    Layout.preferredWidth: 300
+                    // В узком окне отдаём место центральной колонке,
+                    // иначе тулбар и панель сервиса сжимаются в 180px.
+                    Layout.preferredWidth: root.width < 1200 ? 220 : 300
                     Layout.fillHeight: true
                     radius: contentBackground.radius - 10
                     color: Appearance.colors.colLayer1
@@ -448,7 +494,7 @@ Item {
                                     weight: Font.Medium
                                 }
                                 color: Appearance.colors.colOnLayer1
-                                text: "NixOS Config"
+                                text: Translation.tr("NixOS Config")
                             }
                             Rectangle { // branch chip
                                 visible: root.branch.length > 0
@@ -575,6 +621,86 @@ Item {
                             }
                             }
                         }
+                        Rectangle { // ------------------------------------ git status
+                            // Компактная сводка git внизу дерева: сколько файлов в
+                            // индексе, сколько изменено, сколько новых и на сколько
+                            // коммитов мы впереди/отстаём от upstream.
+                            id: gitStatusBar
+                            implicitWidth: 0
+                            implicitHeight: 0
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            Layout.preferredHeight: 26
+                            Layout.minimumHeight: 26
+                            Layout.maximumHeight: 26
+                            radius: Appearance.rounding.normal
+                            color: Appearance.colors.colLayer0
+
+                            RowLayout { // -------------------------------------- chips
+                                id: gitChips
+                                anchors {
+                                    fill: parent
+                                    margins: 2
+                                }
+                                spacing: 1
+
+                                IconAndTextToolbarButton {
+                                    implicitHeight: 20
+                                    iconSize: 13
+                                    fontPixelSize: Appearance.font.pixelSize.smallest
+                                    contentSpacing: 3
+                                    iconText: "check"
+                                    opacity: root.stagedCount > 0 ? 1 : 0.4
+                                    colText: root.stagedCount > 0 ? Appearance.colors.colPrimary : Appearance.colors.colOnLayer1
+                                    text: root.stagedCount.toString()
+                                    StyledToolTip { text: Translation.tr("Staged (in index)") }
+                                }
+                                IconAndTextToolbarButton {
+                                    implicitHeight: 20
+                                    iconSize: 13
+                                    fontPixelSize: Appearance.font.pixelSize.smallest
+                                    contentSpacing: 3
+                                    iconText: "edit"
+                                    opacity: root.modifiedCount > 0 ? 1 : 0.4
+                                    colText: root.modifiedCount > 0 ? Appearance.m3colors.m3error : Appearance.colors.colOnLayer1
+                                    text: root.modifiedCount.toString()
+                                    StyledToolTip { text: Translation.tr("Modified in worktree") }
+                                }
+                                IconAndTextToolbarButton {
+                                    implicitHeight: 20
+                                    iconSize: 13
+                                    fontPixelSize: Appearance.font.pixelSize.smallest
+                                    contentSpacing: 3
+                                    iconText: "help"
+                                    opacity: root.untrackedCount > 0 ? 1 : 0.4
+                                    colText: root.untrackedCount > 0 ? Appearance.m3colors.m3outline : Appearance.colors.colOnLayer1
+                                    text: root.untrackedCount.toString()
+                                    StyledToolTip { text: Translation.tr("Untracked files") }
+                                }
+                                IconAndTextToolbarButton {
+                                    implicitHeight: 20
+                                    iconSize: 13
+                                    fontPixelSize: Appearance.font.pixelSize.smallest
+                                    contentSpacing: 3
+                                    iconText: "arrow_upward"
+                                    opacity: root.aheadCount > 0 ? 1 : 0.4
+                                    colText: root.aheadCount > 0 ? Appearance.m3colors.m3tertiary : Appearance.colors.colOnLayer1
+                                    text: root.aheadCount.toString()
+                                    StyledToolTip { text: Translation.tr("Commits ahead of upstream") }
+                                }
+                                IconAndTextToolbarButton {
+                                    implicitHeight: 20
+                                    iconSize: 13
+                                    fontPixelSize: Appearance.font.pixelSize.smallest
+                                    contentSpacing: 3
+                                    iconText: "arrow_downward"
+                                    opacity: root.behindCount > 0 ? 1 : 0.4
+                                    colText: root.behindCount > 0 ? Appearance.m3colors.m3error : Appearance.colors.colOnLayer1
+                                    text: root.behindCount.toString()
+                                    StyledToolTip { text: Translation.tr("Commits behind upstream") }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -584,70 +710,112 @@ Item {
                     Layout.fillHeight: true
                     spacing: 8
 
-                    Toolbar { // toolbar
-                        padding: 4
-                        spacing: 2
+                    Rectangle { // --------------------------------- toolbar
+                        // Единый вид с панелью сервиса: те же
+                        // IconAndTextToolbarButton (иконка + подпись), тот же
+                        // радиус и цвета. Кнопки делят ширину плашки поровну
+                        // (Layout.fillWidth), поэтому ряд всегда ровный.
+                        // Если места на подпись не хватает — остаются иконки.
+                        id: editorToolbar
+                        visible: root.viewMode === 0
+                        property int gap: 6
+                        readonly property int buttonCount: 7
+                        readonly property real slotWidth: (width - 8 - gap * (buttonCount - 1)) / buttonCount
+                        readonly property bool compact: slotWidth < 125
+                        implicitWidth: 0
+                        implicitHeight: 0
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.preferredHeight: 40
+                        Layout.minimumHeight: 40
+                        Layout.maximumHeight: 40
+                        radius: contentBackground.radius - 10
+                        color: Appearance.colors.colLayer1
+                        clip: true
 
-                        IconToolbarButton {
-                            implicitWidth: height
-                            text: "save"
-                            enabled: root.currentFile.length > 0
-                            onClicked: root.saveFile()
-                            StyledToolTip { text: Translation.tr("Save file (Ctrl+S)") }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        IconToolbarButton {
-                            id: quickBuildButton
-                            implicitWidth: height
-                            text: "bolt"
-                            enabled: !root.building
-                            onClicked: root.performBuild(false)
-                            StyledToolTip { text: Translation.tr("Quick rebuild: ./update.sh --quick (polykit)") }
-                        }
-                        IconToolbarButton {
-                            id: fullBuildButton
-                            implicitWidth: height
-                            text: "system_update"
-                            enabled: !root.building
-                            onClicked: root.performBuild(true)
-                            StyledToolTip { text: Translation.tr("Full update & rebuild: ./update.sh (polykit)") }
-                        }
-                        IconToolbarButton {
-                            id: cancelBuildButton
-                            implicitWidth: height
-                            text: "stop"
-                            enabled: root.building
-                            onClicked: root.cancelBuild()
-                            StyledToolTip { text: Translation.tr("Send SIGTERM to the build") }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        IconToolbarButton {
-                            implicitWidth: height
-                            text: "folder_open"
-                            onClicked: {
-                                const dir = root.currentFile.length > 0
-                                    ? `${root.configRoot}/${root.currentFile}`
-                                    : root.configRoot;
-                                Quickshell.execDetached(["xdg-open", root.currentFile.length > 0 ? dir.substring(0, dir.lastIndexOf("/")) : dir]);
+                        RowLayout {
+                            id: editorToolbarFlow
+                            anchors {
+                                fill: parent
+                                margins: 4
                             }
-                            StyledToolTip { text: Translation.tr("Open folder in file manager") }
-                        }
-                        IconToolbarButton {
-                            implicitWidth: height
-                            text: "terminal"
-                            toggled: root.showConsole
-                            onClicked: root.showConsole = !root.showConsole
-                            StyledToolTip { text: Translation.tr("Toggle build console") }
-                        }
-                        IconToolbarButton {
-                            implicitWidth: height
-                            text: "clear_all"
-                            onClicked: NixosConfigBuild.clearLog()
-                            StyledToolTip { text: Translation.tr("Clear console") }
+                            spacing: editorToolbar.gap
+
+                            IconAndTextToolbarButton {
+                                implicitHeight: 32
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 38
+                                iconText: "save"
+                                text: editorToolbar.compact ? "" : Translation.tr("Save file")
+                                enabled: root.currentFile.length > 0
+                                onClicked: root.saveFile()
+                                StyledToolTip { text: Translation.tr("Save file (Ctrl+S)") }
+                            }
+
+                            IconAndTextToolbarButton {
+                                implicitHeight: 32
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 38
+                                iconText: "bolt"
+                                text: editorToolbar.compact ? "" : Translation.tr("Quick build")
+                                enabled: !root.building
+                                onClicked: root.performBuild(false)
+                                StyledToolTip { text: Translation.tr("Quick rebuild: ./update.sh --quick (polykit)") }
+                            }
+                            IconAndTextToolbarButton {
+                                implicitHeight: 32
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 38
+                                iconText: "system_update"
+                                text: editorToolbar.compact ? "" : Translation.tr("Full build")
+                                enabled: !root.building
+                                onClicked: root.performBuild(true)
+                                StyledToolTip { text: Translation.tr("Full update & rebuild: ./update.sh (polykit)") }
+                            }
+                            IconAndTextToolbarButton {
+                                implicitHeight: 32
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 38
+                                iconText: "stop"
+                                text: editorToolbar.compact ? "" : Translation.tr("Cancel build")
+                                enabled: root.building
+                                onClicked: root.cancelBuild()
+                                StyledToolTip { text: Translation.tr("Send SIGTERM to the build") }
+                            }
+
+                            IconAndTextToolbarButton {
+                                implicitHeight: 32
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 38
+                                iconText: "folder_open"
+                                text: editorToolbar.compact ? "" : Translation.tr("Open folder")
+                                onClicked: {
+                                    const dir = root.currentFile.length > 0
+                                        ? `${root.configRoot}/${root.currentFile}`
+                                        : root.configRoot;
+                                    Quickshell.execDetached(["xdg-open", root.currentFile.length > 0 ? dir.substring(0, dir.lastIndexOf("/")) : dir]);
+                                }
+                                StyledToolTip { text: Translation.tr("Open folder in file manager") }
+                            }
+                            IconAndTextToolbarButton {
+                                implicitHeight: 32
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 38
+                                iconText: "terminal"
+                                text: editorToolbar.compact ? "" : Translation.tr("Build console")
+                                toggled: root.showConsole
+                                onClicked: root.showConsole = !root.showConsole
+                                StyledToolTip { text: Translation.tr("Toggle build console") }
+                            }
+                            IconAndTextToolbarButton {
+                                implicitHeight: 32
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 38
+                                iconText: "clear_all"
+                                text: editorToolbar.compact ? "" : Translation.tr("Clear build log")
+                                onClicked: NixosConfigBuild.clearLog()
+                                StyledToolTip { text: Translation.tr("Clear console") }
+                            }
                         }
                     }
 
@@ -661,6 +829,7 @@ Item {
 
                         Flickable {
                             id: editorScrollView
+                            visible: root.viewMode === 0
                             anchors.fill: parent
                             anchors.margins: 2
                             clip: true
@@ -706,8 +875,8 @@ Item {
                                 id: editor
                                 x: 0
                                 y: 0
-                                visible: !root.loading
-                                focus: true
+                                visible: !root.loading && root.viewMode === 0
+                                focus: root.viewMode === 0
                                 persistentSelection: true
                                 selectByMouse: true
                                 textFormat: TextEdit.PlainText
@@ -732,12 +901,28 @@ Item {
                                 }
                             }
                         }
+
+                        // Панель сервиса занимает ту же область, что и редактор:
+                        // viewMode 0 — файл, 1 — systemd-юнит.
+                        NixosConfigServicePanel {
+                            id: servicePanel
+                            visible: root.viewMode === 1
+                            anchors.fill: parent
+                            anchors.margins: 2
+
+                            onBackRequested: root.showFile()
+                            onOpenConfigRequested: (path, line) => {
+                                root.openPackage(path, line);
+                            }
+                        }
                     }
 
                     // ------------------------------------------------- console
                     Rectangle {
                         id: consoleBackground
-                        visible: root.showConsole
+                        // В режиме сервиса консоль сборки только мешает —
+                        // у панели юнита своя область логов.
+                        visible: root.showConsole && root.viewMode === 0
                         Layout.fillWidth: true
                         Layout.preferredHeight: 180
                         radius: contentBackground.radius - 10
@@ -760,20 +945,22 @@ Item {
                                     }
                                     color: Appearance.colors.colOnLayer1
                                     text: root.building
-                                        ? "⟳ building…"
-                                        : (root.lastBuildExit === null ? "console" : `exited ${root.lastBuildExit}`)
+                                        ? `⟳ ${Translation.tr("building…")}`
+                                        : (root.lastBuildExit === null
+                                            ? Translation.tr("console")
+                                            : Translation.tr("exited %1").arg(root.lastBuildExit))
                                 }
                                 StyledText {
                                     visible: root.lastBuildExit === 0
                                     font.pixelSize: Appearance.font.pixelSize.smallest
                                     color: Appearance.m3colors.m3tertiary
-                                    text: "ok"
+                                    text: Translation.tr("ok")
                                 }
                                 StyledText {
                                     visible: root.lastBuildExit !== null && root.lastBuildExit !== 0
                                     font.pixelSize: Appearance.font.pixelSize.smallest
                                     color: Appearance.m3colors.m3error
-                                    text: "failed"
+                                    text: Translation.tr("failed")
                                 }
                             }
 
@@ -806,10 +993,14 @@ Item {
                 NixosConfigSidebar {
                     id: rightSidebar
                     Layout.fillHeight: true
-                    Layout.preferredWidth: 300
+                    Layout.preferredWidth: root.width < 1200 ? 240 : 300
                     onPackageClicked: (path, line) => {
                         console.log("[nixosConfig] packageClicked signal", path, line);
                         root.openPackage(path, line);
+                    }
+                    onServiceClicked: (unit, scope, path, line) => {
+                        console.log("[nixosConfig] serviceClicked signal", unit, scope, path, line);
+                        root.openService(unit, scope, path, line);
                     }
                 }
             }
@@ -841,7 +1032,7 @@ Item {
     // ================================================================ processes
     Process {
         id: gitProc
-        command: ["bash", "-c", "cd /etc/nixos && git status --short --untracked-files=all; printf '\\n__LS__\\n'; git ls-files; printf '\\n__BR__\\n'; git branch --show-current"]
+        command: ["bash", "-c", "cd /etc/nixos && git status --short --untracked-files=all; printf '\\n__LS__\\n'; git ls-files; printf '\\n__BR__\\n'; git branch --show-current; printf '\\n__AB__\\n'; (git rev-list --count '@{u}..HEAD' 2>/dev/null || printf 0); printf '\\n'; (git rev-list --count 'HEAD..@{u}' 2>/dev/null || printf 0)"]
         stdout: StdioCollector {
             id: gitCollector
             waitForEnd: true
@@ -878,16 +1069,17 @@ Item {
             root.rawText = "";
             root.applyEditorText();
             if (error === FileViewError.FileNotFound) {
-                root.statusHint = "нет такого файла: " + configFileView.path;
+                root.statusHint = Translation.tr("no such file: %1").arg(configFileView.path);
             }
         }
         onSaved: {
-            root.statusHint = `сохранено: ${root.currentFile}`;
+            root.statusHint = Translation.tr("saved: %1").arg(root.currentFile);
             root.fileDirty = false;
             root.refreshGit();
         }
         onSaveFailed: (error) => {
-            root.statusHint = "не удалось сохранить: " + FileViewError.toString(error);
+            root.statusHint = Translation.tr("failed to save: %1")
+                .arg(FileViewError.toString(error));
             root.fileDirty = true;
         }
     }

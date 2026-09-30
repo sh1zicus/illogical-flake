@@ -23,7 +23,7 @@ Scope {
         id: configWindow
         visible: GlobalStates.nixosConfigOpen
         color: "transparent"
-        title: "NixOS Config"
+        title: Translation.tr("NixOS Config")
 
         implicitWidth: Appearance.sizes.wallpaperSelectorWidth - Appearance.sizes.elevationMargin * 2
         implicitHeight: Appearance.sizes.wallpaperSelectorHeight - Appearance.sizes.elevationMargin * 2
@@ -78,7 +78,7 @@ Scope {
 
     GlobalShortcut {
         name: "nixosConfigToggle"
-        description: "Toggle NixOS config manager"
+        description: Translation.tr("Toggle NixOS config manager")
         onPressed: {
             root.toggleNixosConfig();
         }

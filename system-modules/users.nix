@@ -8,7 +8,10 @@
     isNormalUser = true;
     description = "daen2772";
     shell = pkgs.fish;
-    extraGroups = [ "networkmanager" "wheel" ];
+    # video — доступ к /dev/video* (веб-камера, карта захвата) для OBS.
+    # audio — прямая работа с устройствами ALSA/Pulse (в pipewire и так есть
+    # rtkit, но группу стоит иметь для студии).
+    extraGroups = [ "networkmanager" "wheel" "video" "audio" ];
     packages = with pkgs; [];
   };
 

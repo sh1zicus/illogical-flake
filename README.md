@@ -34,7 +34,7 @@
 │   └── daen2772/            # // ЛИЧНЫЕ НАСТРОЙКИ ПОЛЬЗОВАТЕЛЯ //
 │       ├── default.nix      # точка входа: username, импорты ниже
 │       ├── illogical.nix    # включение end-4 окружения (fish, starship)
-│       ├── apps.nix         # твои приложения (bottles, ...)
+│       ├── apps.nix         # твои приложения
 │       └── shell.nix        # настройки оболочки (fish, starship)
 ├── home-module.nix          # модуль Illogical Impulse (end-4/QuickShell)
 ├── home-modules/            # его части: fonts, packages, qt, env, dotfiles...
