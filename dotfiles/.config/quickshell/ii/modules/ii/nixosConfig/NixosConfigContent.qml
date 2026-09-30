@@ -94,10 +94,10 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: root.applyIndex(text)
         }
+        // все текстовые файлы конфига, без фильтра по расширениям: иначе в
+        // .json/.md/.service/.toml подсказок не было вообще
         command: ["sh", "-c",
-            "grep -rhoE '[A-Za-z_][A-Za-z0-9_.-]{2,}'"
-            + " --include='*.nix' --include='*.qml' --include='*.js'"
-            + " --include='*.lua' --include='*.conf' --include='*.sh'"
+            "grep -rhoIE '[A-Za-z_][A-Za-z0-9_.-]{2,}'"
             + " --exclude-dir=.git " + root.configRoot
             + " 2>/dev/null | sort | uniq -c | sort -rn | head -8000"]
     }
@@ -404,9 +404,14 @@ Item {
         for (let i = 0; i < root.wordIndex.length && top.length < 24; i++) {
             const word = root.wordIndex[i];
             const low = word.toLowerCase();
-            if (low === lower) continue;
+            // молчим только если слово совпадает с набранным один в один,
+            // иначе Enter вместо перевода строки вставил бы то же самое
+            if (word === prefix) continue;
             if (low.startsWith(lower)) {
-                (top.length < 6 ? top : rest).push({
+                // отличие только в регистре (mkif -> mkIf): заготовка важнее
+                // самого слова, поэтому такое слово уходит за сниппеты
+                const caseOnly = low === lower;
+                (top.length < 6 && !caseOnly ? top : rest).push({
                     label: word,
                     insert: word,
                     hint: "",
@@ -445,6 +450,13 @@ Item {
         const prefix = root.currentWordPrefix();
         root.completionPrefix = prefix;
         if (prefix.length < 2 || root.completionDismissed === prefix) {
+            root.completionItems = [];
+            return;
+        }
+        // Слово набрано целиком и уже встречается в конфиге — не лезем с
+        // подсказками, иначе Enter вместо перевода строки вставил бы слово
+        // длиннее. Регистр при этом учитывается: mkif -> mkIf полезно.
+        if (prefix.length >= 3 && root.wordIndex.indexOf(prefix) >= 0) {
             root.completionItems = [];
             return;
         }
