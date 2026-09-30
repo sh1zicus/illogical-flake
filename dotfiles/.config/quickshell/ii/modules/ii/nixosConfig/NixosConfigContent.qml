@@ -53,6 +53,14 @@ Item {
         ? 0
         : root.rawText.split("\n").length
     readonly property real lineHeight: editorFontMetrics.lineSpacing
+    // Фактический шаг строк в текстовом документе (на px больше lineSpacing) —
+    // по нему считаются номера строк в левой колонке.
+    readonly property real lineAdvance: editor.cursorRectangle.height > 0
+        ? editor.cursorRectangle.height
+        : root.lineHeight
+    readonly property real gutterWidth: root.rawText.length === 0
+        ? 0
+        : Math.max(40, editorFontMetrics.advanceWidth("0") * String(root.totalLines).length + 22)
 
     // Что показано в центральной области: 0 — редактор файла, 1 — панель сервиса.
     property int viewMode: 0
@@ -870,8 +878,9 @@ Item {
                                 // на px меньше фактического шага строк).
                                 y: Math.max(0, editor.cursorRectangle.y)
                                 width: Math.max(editorScrollView.contentWidth, editorScrollView.width)
-                                height: Math.max(root.lineHeight, editor.cursorRectangle.height)
+                                height: root.lineAdvance
                                 color: Appearance.colors.colLayer1Hover
+                                opacity: 0.35
                             }
 
                             // Always-on syntax highlight via two stacked TextEdit
@@ -899,6 +908,7 @@ Item {
                                     pixelSize: Appearance.font.pixelSize.smallie
                                 }
                                 tabStopDistance: root.tabWidth
+                                leftPadding: lineGutter.width
                                 color: Appearance.colors.colOnLayer1
                                 text: root.rawText.length > 0 ? root.highlightNix(root.rawText) : ""
                             }
@@ -918,6 +928,7 @@ Item {
                                     pixelSize: Appearance.font.pixelSize.smallie
                                 }
                                 tabStopDistance: root.tabWidth
+                                leftPadding: lineGutter.width
                                 color: "transparent"
                                 cursorDelegate: Rectangle {
                                     width: 2
@@ -934,6 +945,47 @@ Item {
                                 }
                                 onCursorPositionChanged: {
                                     root.cursorLine = root.lineOfPosition(cursorPosition);
+                                }
+                            }
+                        }
+
+                        // Левая колонка с номерами строк. Неподвижна по
+                        // горизонтали (скроллится только сам текст), по
+                        // вертикали синхронна с редактором через contentY.
+                        // Фон непрозрачный — уезжающий влево текст уходит под
+                        // него, поэтому leftPadding у обоих слоёв = его ширина.
+                        Rectangle {
+                            id: lineGutter
+                            visible: root.viewMode === 0 && root.rawText.length > 0
+                            anchors {
+                                left: parent.left
+                                top: parent.top
+                                bottom: parent.bottom
+                            }
+                            width: root.gutterWidth
+                            color: Appearance.colors.colLayer1
+                            clip: true
+
+                            Repeater {
+                                model: root.totalLines
+                                delegate: StyledText {
+                                    required property int index
+                                    readonly property int lineNo: index + 1
+                                    x: 0
+                                    y: lineNo * root.lineAdvance - root.lineAdvance - editorScrollView.contentY
+                                    width: lineGutter.width
+                                    height: root.lineAdvance
+                                    horizontalAlignment: Text.AlignRight
+                                    rightPadding: 10
+                                    visible: y > -root.lineAdvance && y < lineGutter.height
+                                    font {
+                                        family: Appearance.font.family.monospace
+                                        pixelSize: Appearance.font.pixelSize.smallie
+                                    }
+                                    color: Appearance.colors.colOnLayer1
+                                    // Номер текущей строки — заметнее остальных.
+                                    opacity: lineNo === root.cursorLine ? 0.95 : 0.4
+                                    text: lineNo
                                 }
                             }
                         }
