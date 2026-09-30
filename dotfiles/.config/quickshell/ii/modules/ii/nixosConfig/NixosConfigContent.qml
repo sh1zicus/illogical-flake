@@ -280,9 +280,9 @@ Item {
         const view = editorScrollView;
         const rect = editor.cursorRectangle;
         const lineH = Math.max(root.lineAdvance, rect.height);
-        // Запас в одну строку: прокрутка включается ровно когда курсор
-        // доходит до нижнего (верхнего) края видимой зоны, а не заранее.
-        const marginY = lineH;
+        // Запас в три строки: курсор не липнет к нижнему краю, а прокрутка
+        // начинается чуть заранее.
+        const marginY = lineH * 3;
         const marginX = 60;
 
         // вертикаль
