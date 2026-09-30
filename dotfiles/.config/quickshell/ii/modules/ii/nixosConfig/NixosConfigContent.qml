@@ -47,6 +47,12 @@ Item {
     property int pendingLine: 0 // line to jump to after the file finishes loading
     property int tabSize: 4 // spaces shown for each tab, must match the highlight layer
     readonly property real tabWidth: editorFontMetrics.advanceWidth(" ") * root.tabSize
+    // Номер строки, где стоит курсор, и высота строки редактора.
+    property int cursorLine: 1
+    readonly property int totalLines: root.rawText.length === 0
+        ? 0
+        : root.rawText.split("\n").length
+    readonly property real lineHeight: editorFontMetrics.lineSpacing
 
     // Что показано в центральной области: 0 — редактор файла, 1 — панель сервиса.
     property int viewMode: 0
@@ -246,6 +252,16 @@ Item {
             idx = nl + 1;
         }
         return idx;
+    }
+
+    // Номер строки по позиции курсора.
+    function lineOfPosition(pos) {
+        const upto = root.rawText.substring(0, Math.max(0, pos));
+        let line = 1;
+        for (let i = 0; i < upto.length; i++) {
+            if (upto.charCodeAt(i) === 10) line++;
+        }
+        return line;
     }
 
     // Позиция конца строки (после переноса) — для подсветки выбора.
@@ -842,6 +858,22 @@ Item {
                             contentWidth: Math.max(highlightLayer.contentWidth, editor.contentWidth)
                             contentHeight: Math.max(highlightLayer.contentHeight, editor.contentHeight)
 
+                            // Подсветка строки, где стоит курсор: на всю ширину
+                            // редактора, поверх фона, но под текстом.
+                            Rectangle {
+                                id: cursorLineBand
+                                visible: root.viewMode === 0 && root.currentFile.length > 0
+                                    && root.rawText.length > 0
+                                x: 0
+                                // Прямоугольник курсора — реальная геометрия
+                                // строки в текстовом документе (FontMetrics.lineSpacing
+                                // на px меньше фактического шага строк).
+                                y: Math.max(0, editor.cursorRectangle.y)
+                                width: Math.max(editorScrollView.contentWidth, editorScrollView.width)
+                                height: Math.max(root.lineHeight, editor.cursorRectangle.height)
+                                color: Appearance.colors.colLayer1Hover
+                            }
+
                             // Always-on syntax highlight via two stacked TextEdit
                             // layers (formattedText does not exist in this Qt build,
                             // so no property binding for it). Both layers grow to
@@ -898,6 +930,46 @@ Item {
                                         root.fileDirty = true;
                                         if (editor.text !== root.rawText) root.rawText = editor.text;
                                     }
+                                    root.cursorLine = root.lineOfPosition(cursorPosition);
+                                }
+                                onCursorPositionChanged: {
+                                    root.cursorLine = root.lineOfPosition(cursorPosition);
+                                }
+                            }
+                        }
+
+                        // Счётчик строк: номер строки курсора и всего файла.
+                        Rectangle {
+                            id: lineCounter
+                            visible: root.viewMode === 0 && root.rawText.length > 0
+                            anchors {
+                                right: parent.right
+                                bottom: parent.bottom
+                                rightMargin: 10
+                                bottomMargin: 10
+                            }
+                            implicitWidth: lineCounterRow.implicitWidth + 16
+                            implicitHeight: 22
+                            radius: height / 2
+                            color: Appearance.colors.colLayer0
+
+                            RowLayout {
+                                id: lineCounterRow
+                                anchors.centerIn: parent
+                                spacing: 4
+
+                                MaterialSymbol {
+                                    text: "format_list_numbered"
+                                    iconSize: 14
+                                    color: Appearance.colors.colOnLayer1
+                                    opacity: 0.7
+                                }
+                                StyledText {
+                                    font.pixelSize: Appearance.font.pixelSize.smallest
+                                    color: Appearance.colors.colOnLayer1
+                                    text: Translation.tr("Line %1 of %2")
+                                        .arg(root.cursorLine)
+                                        .arg(root.totalLines)
                                 }
                             }
                         }

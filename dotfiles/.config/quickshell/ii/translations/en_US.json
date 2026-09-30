@@ -690,5 +690,6 @@
   "Untracked files": "Untracked files",
   "Commits ahead of upstream": "Commits ahead of upstream",
   "Commits behind upstream": "Commits behind upstream",
-  "clean": "clean"
+  "clean": "clean",
+  "Line %1 of %2": "Line %1 of %2"
 }

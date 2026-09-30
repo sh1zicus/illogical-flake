@@ -837,5 +837,6 @@
   "Untracked files": "Не отслеживаются",
   "Commits ahead of upstream": "Коммитов впереди upstream",
   "Commits behind upstream": "Коммитов позади upstream",
-  "clean": "чисто"
+  "clean": "чисто",
+  "Line %1 of %2": "Строка %1 из %2"
 }
