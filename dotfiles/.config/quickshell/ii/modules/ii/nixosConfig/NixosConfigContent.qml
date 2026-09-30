@@ -71,7 +71,7 @@ Item {
     property string completionDismissed: ""
     property bool completionManual: false // открыто по Ctrl+Space: стрелки листают список
     property bool suppressCompletion: false
-    readonly property int completionMaxVisible: 8
+    readonly property int completionMaxVisible: 10
 
     // Что показано в центральной области: 0 — редактор файла, 1 — панель сервиса.
     property int viewMode: 0
@@ -422,8 +422,8 @@ Item {
             }
         }
 
-        // заготовки по расширению файла — сразу после самых частых слов,
-        // иначе они вытеснялись списком подсказок и их не было видно
+        // Заготовки идут первыми: по префиксу вроде 'mk' слова забивают
+        // весь список, и шаблон оказывался за пределами видимых строк.
         const snippets = [];
         for (const snip of root.snippetList(root.currentExtension())) {
             if (snip.label.toLowerCase().startsWith(lower)) {
@@ -435,7 +435,7 @@ Item {
                 });
             }
         }
-        return top.concat(snippets, rest, subs).slice(0, 24);
+        return snippets.concat(top, rest, subs).slice(0, 24);
     }
 
     function updateCompletion() {
@@ -1556,6 +1556,12 @@ Item {
                         }
                         Shortcut {
                             sequence: "Return"
+                            enabled: root.completionItems.length > 0
+                            onActivated: root.acceptCompletion()
+                        }
+                        // Tab тоже применяет подсказку/сниппет, пока список открыт
+                        Shortcut {
+                            sequence: "Tab"
                             enabled: root.completionItems.length > 0
                             onActivated: root.acceptCompletion()
                         }
