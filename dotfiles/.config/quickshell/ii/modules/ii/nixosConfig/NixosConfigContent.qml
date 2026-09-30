@@ -311,6 +311,36 @@ Item {
     }
 
     // Позиция конца строки (посре переноса) — для подсветки выбора.
+    // Хлебные крошки: сегменты пути от корня конфига до файла. Если в
+    // отведённую ширину не помещаются — оставляем хвост пути и ставим
+    // многоточие вместо скрытого начала.
+    function buildCrumbs(availWidth) {
+        const out = [];
+        if (root.currentFile.length === 0) return out;
+        const parts = root.currentFile.split("/").filter(part => part.length > 0);
+        if (parts.length === 0) return out;
+        const chevron = 14;
+        const pad = 8;
+        const max = Math.max(80, availWidth - 12);
+        let used = 0;
+        for (let i = parts.length - 1; i >= 0; i--) {
+            const width = editorFontMetrics.advanceWidth(parts[i]) + pad
+                + (out.length > 0 ? chevron : 0);
+            if (out.length > 0 && used + width > max) {
+                out.unshift({ text: "…", path: "", ellipsis: true, isFile: false });
+                break;
+            }
+            used += width;
+            out.unshift({
+                text: parts[i],
+                path: parts.slice(0, i + 1).join("/"),
+                ellipsis: false,
+                isFile: i === parts.length - 1
+            });
+        }
+        return out;
+    }
+
     function lineEndPos(line) {
         const pos = root.lineStartPos(line);
         const nl = root.rawText.indexOf("\n", pos);
@@ -892,8 +922,16 @@ Item {
                         Flickable {
                             id: editorScrollView
                             visible: root.viewMode === 0
-                            anchors.fill: parent
-                            anchors.margins: 2
+                            anchors {
+                                left: parent.left
+                                right: parent.right
+                                top: breadcrumbRow.visible ? breadcrumbRow.bottom : parent.top
+                                bottom: parent.bottom
+                                leftMargin: 2
+                                rightMargin: 2
+                                topMargin: breadcrumbRow.visible ? 1 : 2
+                                bottomMargin: 2
+                            }
                             clip: true
                             ScrollBar.horizontal: StyledScrollBar {}
                             ScrollBar.vertical: StyledScrollBar {}
@@ -992,6 +1030,103 @@ Item {
                             }
                         }
 
+                        // Хлебные крошки пути к файлу: клик по папке открывает
+                        // её в файловом менеджере, имя файла — текущее.
+                        Item {
+                            id: breadcrumbRow
+                            visible: root.viewMode === 0 && root.currentFile.length > 0
+                            anchors {
+                                left: parent.left
+                                right: parent.right
+                                top: parent.top
+                                leftMargin: 2
+                                rightMargin: 2
+                                topMargin: 2
+                            }
+                            height: 28
+                            readonly property var crumbs: root.buildCrumbs(width)
+
+                            Rectangle { // тонкая линия под крошками
+                                anchors {
+                                    left: parent.left
+                                    right: parent.right
+                                    bottom: parent.bottom
+                                }
+                                height: 1
+                                color: Appearance.colors.colOnLayer1
+                                opacity: 0.12
+                            }
+
+                            Row {
+                                anchors {
+                                    left: parent.left
+                                    right: parent.right
+                                    leftMargin: 6
+                                    rightMargin: 6
+                                    verticalCenter: parent.verticalCenter
+                                    verticalCenterOffset: -1
+                                }
+                                spacing: 0
+
+                                Repeater {
+                                    model: breadcrumbRow.crumbs
+                                    delegate: Row {
+                                        id: crumb
+                                        required property var modelData
+                                        required property int index
+                                        height: breadcrumbRow.height
+                                        spacing: 0
+
+                                        MaterialSymbol {
+                                            visible: crumb.index > 0
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: 14
+                                            text: "chevron_right"
+                                            iconSize: 12
+                                            color: Appearance.colors.colOnLayer1
+                                            opacity: 0.35
+                                        }
+
+                                        StyledText {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            leftPadding: 4
+                                            rightPadding: 4
+                                            font {
+                                                family: Appearance.font.family.monospace
+                                                pixelSize: Appearance.font.pixelSize.smallie
+                                            }
+                                            color: Appearance.colors.colOnLayer1
+                                            opacity: crumb.modelData.ellipsis
+                                                ? 0.35
+                                                : (crumbClick.containsMouse
+                                                    ? 1
+                                                    : (crumb.modelData.isFile ? 0.9 : 0.55))
+                                            text: crumb.modelData.text
+
+                                            MouseArea {
+                                                id: crumbClick
+                                                anchors.fill: parent
+                                                enabled: !crumb.modelData.ellipsis
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    Quickshell.execDetached([
+                                                        "xdg-open",
+                                                        `${root.configRoot}/${crumb.modelData.path}`
+                                                    ]);
+                                                }
+                                                StyledToolTip {
+                                                    text: crumb.modelData.isFile
+                                                        ? `${root.configRoot}/${crumb.modelData.path}`
+                                                        : Translation.tr("Open folder in file manager")
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // Левая колонка с номерами строк. Неподвижна по
                         // горизонтали (скроллится только сам текст), по
                         // вертикали синхронна с редактором через contentY.
@@ -1001,9 +1136,9 @@ Item {
                             id: lineGutter
                             visible: root.viewMode === 0 && root.rawText.length > 0
                             anchors {
-                                left: parent.left
-                                top: parent.top
-                                bottom: parent.bottom
+                                left: editorScrollView.left
+                                top: editorScrollView.top
+                                bottom: editorScrollView.bottom
                             }
                             width: root.gutterWidth
                             color: Appearance.colors.colLayer1
