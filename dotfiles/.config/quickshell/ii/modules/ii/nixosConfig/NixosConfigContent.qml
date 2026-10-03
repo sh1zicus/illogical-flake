@@ -27,6 +27,13 @@ Item {
     property string configRoot: "/etc/nixos"
     property string currentFile: ""
     property bool fileDirty: false
+    // Несохранённые правки по файлам: путь -> текст. Держим в памяти, чтобы
+    // правки не терялись при переключении файла и чтобы дерево могло
+    // показать, какие файлы не сохранены.
+    property var dirtyFiles: ({})
+    readonly property color unsavedColor: "#FFB74D"
+    property bool gitCommitting: false
+    property string gitCommitOutput: ""
     property bool loading: false
     readonly property bool building: NixosConfigBuild.building
     property bool showConsole: true
@@ -37,6 +44,20 @@ Item {
     readonly property string logText: NixosConfigBuild.logText
     property string rawText: "" // plain file content (edit) | highlighted HTML is derived from it
     property bool syncingText: false // true while applyEditorText() pushes programmatic text
+    // Высота консоли сборки. Тянется за границу над панелью, значение живёт
+    // в states.json, поэтому переживает и закрытие окна, и перезапуск шелла.
+    readonly property real consoleDefaultHeight: 180
+    readonly property real consoleMinHeight: 90
+    // Сверху ограничиваем так, чтобы редактор остался пригодным для работы.
+    readonly property real consoleMaxHeight: Math.max(root.consoleMinHeight, editorConsoleCol.height - 190)
+    property real consoleHeight: Persistent.states.nixosConfig.consoleHeight
+    readonly property real effectiveConsoleHeight: Math.max(root.consoleMinHeight,
+        Math.min(root.consoleHeight, root.consoleMaxHeight))
+    onConsoleHeightChanged: {
+        if (Persistent.states.nixosConfig.consoleHeight !== root.consoleHeight) {
+            Persistent.states.nixosConfig.consoleHeight = root.consoleHeight;
+        }
+    }
     property int dirtyCount: 0
     // Компактная сводка git внизу дерева файлов.
     property int stagedCount: 0
@@ -45,6 +66,7 @@ Item {
     property int aheadCount: 0
     property int behindCount: 0
     property int pendingLine: 0 // line to jump to after the file finishes loading
+    property var pendingInsert: null // {path, line, text} — строка пакета, ждущая загрузки файла
     property int tabSize: 4 // spaces shown for each tab, must match the highlight layer
     readonly property real tabWidth: editorFontMetrics.advanceWidth(" ") * root.tabSize
     // Номер строки, где стоит курсор, и высота строки редактора.
@@ -166,9 +188,6 @@ Item {
         const nums = abBlock.filter((l) => /^\d+$/.test(l.trim()));
         root.aheadCount = nums.length > 0 ? parseInt(nums[0], 10) : 0;
         root.behindCount = nums.length > 1 ? parseInt(nums[1], 10) : 0;
-        root.statusHint = root.dirtyCount > 0
-            ? Translation.tr("%1 changed files in git").arg(root.dirtyCount)
-            : Translation.tr("config is clean, branch %1").arg(root.branch);
     }
 
     function buildTree(paths, statusMap) {
@@ -263,9 +282,75 @@ Item {
         root.viewMode = 1;
     }
 
+    // TEMP-TEST-HOOK
+    IpcHandler {
+        target: "nixosConfigContentTest"
+        function state() {
+            console.log("[TEST] compl", JSON.stringify({
+                focus: editor.activeFocus,
+                prefix: root.completionPrefix,
+                total: root.completionItems.length,
+                items: root.completionItems.slice(0, 4).map(i => i.label + (i.isSnippet ? "*" : "")),
+                tail: root.rawText.slice(-24)
+            }));
+        }
+        function load() { root.openPackage("system-modules/packages.nix", 1); }
+        function focusEditor() { editor.forceActiveFocus(); }
+    }
+
     // Открыть файл (из правой панели с пакетами) и промотать редактор к строке.
+    // Вставка текста в позицию курсора: используется панелью пакетов,
+    // когда из найденного в nixpkgs пакета выбирается строка.
+    function insertAtCursor(text) {
+        if (!editor || !text) return;
+        const pos = editor.cursorPosition;
+        root.suppressCompletion = true;
+        editor.text = root.rawText.substring(0, pos) + text + root.rawText.substring(pos);
+        editor.cursorPosition = pos + text.length;
+        editor.forceActiveFocus();
+        root.suppressCompletion = false;
+        root.completionItems = [];
+        root.completionManual = false;
+        root.markDirty();
+    }
+
+    // Вставка пакета НОВОЙ СТРОКОЙ в конец списка (home.packages или
+    // environment.systemPackages), а не в позицию курсора: так пакет сразу
+    // попадает в нужный файл и в правильное место. Если файл ещё не открыт —
+    // открываем его и вставляем после загрузки.
+    function addPackageToList(attr, target) {
+        if (!attr || !target) return;
+        const entry = target.withPkgs ? attr : `pkgs.${attr}`;
+        root.pendingInsert = {
+            path: target.path,
+            line: target.closeLine,
+            text: " ".repeat(target.indent) + entry
+        };
+        if (root.currentFile === target.path) {
+            root.insertPendingLine();
+        } else {
+            root.openPackage(target.path, target.closeLine);
+        }
+    }
+
+    function insertPendingLine() {
+        const ins = root.pendingInsert;
+        if (!ins || !editor || root.loading) return;
+        root.pendingInsert = null;
+        const lines = root.rawText.split("\n");
+        const idx = Math.max(0, Math.min(lines.length, ins.line - 1));
+        lines.splice(idx, 0, ins.text);
+        root.suppressCompletion = true;
+        editor.text = lines.join("\n");
+        root.suppressCompletion = false;
+        root.completionItems = [];
+        root.completionManual = false;
+        root.markDirty();
+        editor.forceActiveFocus();
+        root.statusHint = Translation.tr("%1 → %2").arg(ins.text.trim()).arg(ins.path);
+    }
+
     function openPackage(path, line) {
-        console.log("[nixosConfig] openPackage", path, line);
         if (root.currentFile === path) {
             root.viewMode = 0;
             Qt.callLater(() => root.scrollToLine(line));
@@ -463,10 +548,12 @@ Item {
         const items = root.collectCompletions(prefix);
         root.completionItems = items;
         root.completionIndex = 0;
+        console.log("[COMP] prefix", prefix, "items", items.length, items.length > 0 ? items[0].label : "-");
     }
 
     function acceptCompletion(item) {
         const chosen = item || root.completionItems[root.completionIndex];
+        console.log("[COMP] accept", chosen ? chosen.label : "none");
         if (!chosen || !editor) return;
         const pos = editor.cursorPosition;
         const start = Math.max(0, pos - root.completionPrefix.length);
@@ -582,10 +669,35 @@ Item {
         }
     }
 
+    function hasUnsaved(path) {
+        return path !== undefined && path.length > 0 && root.dirtyFiles[path] !== undefined;
+    }
+
+    function markDirty() {
+        if (root.currentFile.length === 0) return;
+        const next = {};
+        for (const k in root.dirtyFiles) next[k] = root.dirtyFiles[k];
+        next[root.currentFile] = root.rawText;
+        root.dirtyFiles = next;
+        root.fileDirty = true;
+    }
+
+    function clearDirty(path) {
+        const p = path ?? root.currentFile;
+        if (root.dirtyFiles[p] !== undefined) {
+            const next = {};
+            for (const k in root.dirtyFiles) {
+                if (k !== p) next[k] = root.dirtyFiles[k];
+            }
+            root.dirtyFiles = next;
+        }
+        if (p === root.currentFile) root.fileDirty = false;
+    }
+
     function saveFile() {
         if (root.currentFile.length === 0) return;
         configFileView.setText(root.rawText);
-        root.fileDirty = false;
+        root.clearDirty();
         root.statusHint = Translation.tr("saving %1…").arg(root.currentFile);
     }
 
@@ -861,6 +973,10 @@ Item {
                                 clip: true
                                 interactive: true
                                 spacing: 1
+                                // Без этого список «оттягивается» резинкой за края
+                                // и прыгает обратно — прокрутка в дереве выглядела
+                                // нервной. Пакеты/сервисы в правой панели так же.
+                                boundsBehavior: Flickable.StopAtBounds
                                 ScrollBar.vertical: StyledScrollBar {}
 
                                 model: root.treeRows
@@ -875,9 +991,15 @@ Item {
                                 Rectangle {
                                     anchors.fill: parent
                                     radius: 6
+                                    // Несохранённый файл — оранжевая подложка, даже
+                                    // если он открыт: иначе оранжевый текст нечитаем
+                                    // на синей заливке текущего файла.
                                     color: modelData.isDir ? "transparent"
-                                        : (root.currentFile === modelData.path) ? Appearance.colors.colPrimary
-                                        : (containsMouse ? Appearance.colors.colLayer0 : "transparent")
+                                        : (root.hasUnsaved(modelData.path)
+                                            ? Qt.rgba(root.unsavedColor.r, root.unsavedColor.g,
+                                                root.unsavedColor.b, 0.18)
+                                            : (root.currentFile === modelData.path) ? Appearance.colors.colPrimary
+                                            : (containsMouse ? Appearance.colors.colLayer0 : "transparent"))
                                 }
 
                                 RowLayout {
@@ -895,7 +1017,9 @@ Item {
                                         iconSize: 16
                                         color: modelData.isDir
                                             ? Appearance.colors.colOnLayer1
-                                            : (root.currentFile === modelData.path ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer1)
+                                            : (root.hasUnsaved(modelData.path)
+                                                ? root.unsavedColor
+                                                : (root.currentFile === modelData.path ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer1))
                                         opacity: modelData.isDir ? 0.6 : 0.9
                                     }
                                     StyledText {
@@ -904,7 +1028,9 @@ Item {
                                         font.pixelSize: Appearance.font.pixelSize.small
                                         color: modelData.isDir
                                             ? Appearance.colors.colOnLayer1
-                                            : (root.currentFile === modelData.path ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer1)
+                                            : (root.hasUnsaved(modelData.path)
+                                                ? root.unsavedColor
+                                                : (root.currentFile === modelData.path ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer1))
                                         text: modelData.name
                                         opacity: modelData.isDir ? 0.85 : 1
                                     }
@@ -1008,6 +1134,7 @@ Item {
 
                 // ------------------------------------------------- editor + console
                 ColumnLayout {
+                    id: editorConsoleCol
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     spacing: 8
@@ -1052,6 +1179,19 @@ Item {
                                 enabled: root.currentFile.length > 0
                                 onClicked: root.saveFile()
                                 StyledToolTip { text: Translation.tr("Save file (Ctrl+S)") }
+                            }
+
+                            IconAndTextToolbarButton {
+                                implicitHeight: 32
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 38
+                                iconText: "cloud_upload"
+                                text: editorToolbar.compact ? "" : Translation.tr("Commit & push")
+                                enabled: !root.gitCommitting
+                                onClicked: root.autoCommitPush()
+                                StyledToolTip {
+                                    text: Translation.tr("Commit all changes with an auto-generated message and push (git)")
+                                }
                             }
 
                             IconAndTextToolbarButton {
@@ -1109,15 +1249,6 @@ Item {
                                 onClicked: root.showConsole = !root.showConsole
                                 StyledToolTip { text: Translation.tr("Toggle build console") }
                             }
-                            IconAndTextToolbarButton {
-                                implicitHeight: 32
-                                Layout.fillWidth: true
-                                Layout.minimumWidth: 38
-                                iconText: "clear_all"
-                                text: editorToolbar.compact ? "" : Translation.tr("Clear build log")
-                                onClicked: NixosConfigBuild.clearLog()
-                                StyledToolTip { text: Translation.tr("Clear console") }
-                            }
                         }
                     }
 
@@ -1128,6 +1259,10 @@ Item {
                         Layout.fillHeight: true
                         radius: contentBackground.radius - 10
                         color: Appearance.colors.colLayer1
+                        // Тонкая оранжевая рамка: в файле есть несохранённые
+                        // правки.
+                        border.width: root.fileDirty ? 2 : 0
+                        border.color: root.unsavedColor
 
                         Flickable {
                             id: editorScrollView
@@ -1228,8 +1363,8 @@ Item {
 
                                 onTextChanged: {
                                     if (!root.loading && !root.syncingText) {
-                                        root.fileDirty = true;
                                         if (editor.text !== root.rawText) root.rawText = editor.text;
+                                        root.markDirty();
                                     }
                                     root.cursorLine = root.lineOfPosition(cursorPosition);
                                     // cursorPosition ещё старый: пересчёт после
@@ -1245,6 +1380,43 @@ Item {
                                     if (!activeFocus) {
                                         root.completionItems = [];
                                         root.completionManual = false;
+                                    }
+                                }
+                                // Клавиши ловим здесь, а не через Shortcut: в этом
+                                // Quickshell Shortcut не перехватывает их, и Enter/Tab
+                                // доходили до TextEdit (перевод строки и табуляция).
+                                Keys.onPressed: event => {
+                                    if (root.completionItems.length === 0) return;
+                                    const ctrl = (event.modifiers & Qt.ControlModifier) !== 0;
+                                    switch (event.key) {
+                                    case Qt.Key_Return:
+                                    case Qt.Key_Enter:
+                                        root.acceptCompletion();
+                                        event.accepted = true;
+                                        break;
+                                    case Qt.Key_Tab:
+                                    case Qt.Key_Backtab:
+                                        root.acceptCompletion();
+                                        event.accepted = true;
+                                        break;
+                                    case Qt.Key_Escape:
+                                        root.closeCompletion();
+                                        event.accepted = true;
+                                        break;
+                                    case Qt.Key_Down:
+                                        if (root.completionManual || ctrl) {
+                                            root.moveCompletion(1);
+                                            event.accepted = true;
+                                        }
+                                        break;
+                                    case Qt.Key_Up:
+                                        if (root.completionManual || ctrl) {
+                                            root.moveCompletion(-1);
+                                            event.accepted = true;
+                                        }
+                                        break;
+                                    default:
+                                        break;
                                     }
                                 }
                             }
@@ -1334,11 +1506,6 @@ Item {
                                                         "xdg-open",
                                                         `${root.configRoot}/${crumb.modelData.path}`
                                                     ]);
-                                                }
-                                                StyledToolTip {
-                                                    text: crumb.modelData.isFile
-                                                        ? `${root.configRoot}/${crumb.modelData.path}`
-                                                        : Translation.tr("Open folder in file manager")
                                                 }
                                             }
                                         }
@@ -1608,14 +1775,67 @@ Item {
                         }
                     }
 
+                    // ------------------------------------------------- console splitter
+                    // Тянем верхнюю границу консоли: чем выше, тем больше
+                    // места под лог сборки. Двойной клик — вернуть 180.
+                    Item {
+                        id: consoleSplitter
+                        visible: root.showConsole && root.viewMode === 0
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 10
+                        Layout.minimumHeight: 10
+                        Layout.maximumHeight: 10
+                        // Прозрачная полоса вместе с отступами колонки давала бы
+                        // 26px пустоты между редактором и консолью, поэтому
+                        // отступы сокращаем вдвое.
+                        Layout.topMargin: -4
+                        Layout.bottomMargin: -4
+
+                        Rectangle { // «хватка»
+                            anchors.centerIn: parent
+                            width: 28
+                            height: 2
+                            radius: 1
+                            color: Appearance.colors.colOnLayer1
+                            opacity: splitterDrag.pressed ? 0.9 : (splitterDrag.containsMouse ? 0.55 : 0.25)
+                            Behavior on opacity {
+                                NumberAnimation { duration: 150 }
+                            }
+                        }
+                        MouseArea {
+                            id: splitterDrag
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.SizeVerCursor
+                            // Смещение считаем в координатах сцены: сама
+                            // граница едет вслед за мышью, и в координатах
+                            // MouseArea получился бы сдвиг вдвое.
+                            property real grabSceneY: 0
+                            property real grabHeight: 0
+                            onPressed: (event) => {
+                                grabSceneY = mapToItem(null, event.x, event.y).y;
+                                grabHeight = root.effectiveConsoleHeight;
+                            }
+                            onPositionChanged: (event) => {
+                                if (!splitterDrag.pressed) return;
+                                const sceneY = splitterDrag.mapToItem(null, event.x, event.y).y;
+                                root.consoleHeight = splitterDrag.grabHeight
+                                    - (sceneY - splitterDrag.grabSceneY);
+                            }
+                            onDoubleClicked: root.consoleHeight = root.consoleDefaultHeight
+                        }
+                    }
+
                     // ------------------------------------------------- console
                     Rectangle {
                         id: consoleBackground
                         // В режиме сервиса консоль сборки только мешает —
                         // у панели юнита своя область логов.
                         visible: root.showConsole && root.viewMode === 0
+                        implicitHeight: 0
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 180
+                        Layout.minimumHeight: 0
+                        Layout.preferredHeight: root.effectiveConsoleHeight
                         radius: contentBackground.radius - 10
                         color: Appearance.colors.colLayer1
 
@@ -1625,7 +1845,15 @@ Item {
                             spacing: 4
 
                             RowLayout {
+                                id: consoleHeader
                                 Layout.fillWidth: true
+                                // Высота строки фиксирована: ScrollView отдаёт
+                                // в ColumnLayout implicitHeight по содержимому
+                                // лога, и без этого строка сжимается вместе с ним.
+                                Layout.minimumWidth: 0
+                                Layout.minimumHeight: 26
+                                Layout.preferredHeight: 26
+                                Layout.maximumHeight: 26
                                 spacing: 6
 
                                 StyledText {
@@ -1653,12 +1881,36 @@ Item {
                                     color: Appearance.m3colors.m3error
                                     text: Translation.tr("failed")
                                 }
+                                IconToolbarButton {
+                                    // implicitWidth у IconToolbarButton привязан к
+                                    // высоте, поэтому размеры кнопки задаём
+                                    // явно: иначе в RowLayout высота строки и
+                                    // ширина кнопки зависят друг от друга и
+                                    // раскладка то скачет, то «залипает» на
+                                    // неверном размере.
+                                    Layout.minimumWidth: 26
+                                    Layout.preferredWidth: 26
+                                    Layout.maximumWidth: 26
+                                    Layout.minimumHeight: 26
+                                    Layout.preferredHeight: 26
+                                    Layout.maximumHeight: 26
+                                    text: "clear_all"
+                                    enabled: root.logText.length > 0
+                                    onClicked: NixosConfigBuild.clearLog()
+                                    StyledToolTip { text: Translation.tr("Clear console") }
+                                }
                             }
 
                             ScrollView {
                                 id: consoleScrollView
+                                // implicit* = 0: высоту панели задаёт
+                                // Layout.preferredHeight, а не содержимое лога.
+                                implicitWidth: 0
+                                implicitHeight: 0
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
+                                Layout.minimumWidth: 0
+                                Layout.minimumHeight: 0
                                 clip: true
                                 ScrollBar.vertical: StyledScrollBar {
                                     id: consoleScrollBar
@@ -1684,11 +1936,15 @@ Item {
                 NixosConfigSidebar {
                     id: rightSidebar
                     Layout.fillHeight: true
-                    Layout.preferredWidth: root.width < 1200 ? 240 : 300
+                    Layout.preferredWidth: root.width < 1200 ? 264 : 336
                     onPackageClicked: (path, line) => {
                         console.log("[nixosConfig] packageClicked signal", path, line);
                         root.openPackage(path, line);
                     }
+                    onInsertPackage: (attr) => {
+                        root.insertAtCursor(`pkgs.${attr}`);
+                    }
+                    onInsertPackageLine: (attr, target) => root.addPackageToList(attr, target)
                     onServiceClicked: (unit, scope, path, line) => {
                         console.log("[nixosConfig] serviceClicked signal", unit, scope, path, line);
                         root.openService(unit, scope, path, line);
@@ -1721,6 +1977,61 @@ Item {
     }
 
     // ================================================================ processes
+    // ------------------------------------------------- commit & push
+    // Коммитит и пушит весь конфиг. Несохранённые буферы в памяти на диск не
+    // попадут, поэтому при них кнопка отказывает и просит сохранить файлы.
+    function autoCommitPush() {
+        const unsaved = Object.keys(root.dirtyFiles).length;
+        if (unsaved > 0) {
+            root.statusHint = Translation.tr("save %1 unsaved file(s) first").arg(unsaved);
+            return;
+        }
+        root.showConsole = true;
+        NixosConfigBuild.logText = (NixosConfigBuild.logText.length > 0
+            ? NixosConfigBuild.logText + "\n" : "")
+            + "$ git commit --all && git push";
+        root.statusHint = Translation.tr("committing…");
+        root.gitCommitOutput = "";
+        root.gitCommitting = true;
+        commitProc.running = true;
+    }
+
+    Process {
+        id: commitProc
+        command: [
+            "python3",
+            Quickshell.shellPath("scripts/nixos-git-autocommit.py"),
+            "--repo", root.configRoot
+        ]
+        stdout: StdioCollector {
+            id: commitOut
+            waitForEnd: true
+            onStreamFinished: root.gitCommitOutput += commitOut.text
+        }
+        stderr: StdioCollector {
+            id: commitErr
+            waitForEnd: true
+            onStreamFinished: root.gitCommitOutput += commitErr.text
+        }
+        onExited: (exitCode, exitStatus) => {
+            root.gitCommitting = false;
+            const txt = root.gitCommitOutput.trim();
+            if (txt.length > 0) {
+                NixosConfigBuild.logText += "\n" + txt;
+            }
+            const lines = txt.split("\n").filter(l => l.trim().length > 0);
+            const last = lines.length > 0 ? lines[lines.length - 1] : "";
+            if (exitCode === 0) {
+                root.statusHint = last;
+            } else if (exitCode === 1) {
+                root.statusHint = Translation.tr("nothing to commit");
+            } else {
+                root.statusHint = Translation.tr("commit/push failed — see console");
+            }
+            root.refreshGit();
+        }
+    }
+
     Process {
         id: gitProc
         command: ["bash", "-c", "cd /etc/nixos && git status --short --untracked-files=all; printf '\\n__LS__\\n'; git ls-files; printf '\\n__BR__\\n'; git branch --show-current; printf '\\n__AB__\\n'; (git rev-list --count '@{u}..HEAD' 2>/dev/null || printf 0); printf '\\n'; (git rev-list --count 'HEAD..@{u}' 2>/dev/null || printf 0)"]
@@ -1746,12 +2057,22 @@ Item {
             if (configFileView.path.length === 0 || configFileView.path !== root.currentFilePath()) return;
             root.loading = false;
             root.rawText = configFileView.text();
+            // Несохранённый буфер важнее свежего текста с диска: иначе
+            // переключение файла молча выкидывало бы правки.
+            if (root.hasUnsaved(root.currentFile)) {
+                root.rawText = root.dirtyFiles[root.currentFile];
+                root.fileDirty = true;
+            } else {
+                root.fileDirty = false;
+            }
             root.applyEditorText();
-            root.fileDirty = false;
             if (root.pendingLine > 0) {
                 const ln = root.pendingLine;
                 root.pendingLine = 0;
                 Qt.callLater(() => root.scrollToLine(ln));
+            }
+            if (root.pendingInsert !== null) {
+                Qt.callLater(() => root.insertPendingLine());
             }
         }
         onLoadFailed: (error) => {
@@ -1765,13 +2086,13 @@ Item {
         }
         onSaved: {
             root.statusHint = Translation.tr("saved: %1").arg(root.currentFile);
-            root.fileDirty = false;
+            root.clearDirty();
             root.refreshGit();
         }
         onSaveFailed: (error) => {
             root.statusHint = Translation.tr("failed to save: %1")
                 .arg(FileViewError.toString(error));
-            root.fileDirty = true;
+            root.markDirty();
         }
     }
 

@@ -57,6 +57,25 @@
         # Look & feel — collapsed sidebar (сайдбар сворачивается, выезжает по наведению).
         "zen.view.sidebar.expanded" = false;
         "zen.view.compact.hide-tabbar" = true;
+
+        # Экономия памяти — важно под играми, где RAM упирается.
+        # Выгружать фоновые вкладки при нехватке памяти вместо свапа.
+        "browser.tabs.unloadOnLowMemory" = true;
+        # Не держать JS-объекты в разделяемой памяти.
+        "javascript.options.shared_memory" = false;
+        # Агрессивнее усыплять таймеры в фоновых вкладках.
+        "dom.min_background_timeout_value" = 1000;
+        # Не хранить в памяти историю переходов для документов.
+        "browser.sessionhistory.max_total_viewers" = 0;
+        # Не держать content-процессы наготове: в простое это 100–250 МБ
+        # RAM, которые не нужны, пока не открываешь новые вкладки.
+        "dom.ipc.processPrelaunch.enabled" = false;
+        # 16 ядер, а дефолт 8 — меньше процессов, меньше overhead.
+        "dom.ipc.processCount" = 4;
+        # Не предзагружать ссылки в фоне: во время игры лишний трафик и CPU.
+        "network.prefetch-next" = false;
+        # 25 закрытых вкладок в истории — многовато.
+        "browser.sessionstore.max_tabs_undo" = 5;
       };
     };
   };

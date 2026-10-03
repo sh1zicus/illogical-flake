@@ -3,8 +3,13 @@
 -- Disable blur for xwayland context menus
 hl.window_rule({match = {class = "^()$", title = "^()$" },                   no_blur = true })
 
--- Disable blur for every window
-hl.window_rule({match = {class = ".*" }, no_blur = true })
+-- Blur for terminals and quickshell windows; everything else stays sharp.
+-- This used to be `no_blur` on class = ".*", which killed blur everywhere.
+-- Hyprland has no `blur` window rule -- `no_blur` is a one-way flag applied at
+-- window creation and cannot be overridden by a later rule -- so the global
+-- rule can only be inverted, not amended. Hence the negative lookahead:
+-- match everything EXCEPT the windows that should get blur.
+hl.window_rule({match = {class = "^(?!foot$|org\\.quickshell$).*$" }, no_blur = true })
 
 -- Floating
 hl.window_rule({match = {title = "^(Open File)(.*)$" },                      center = true})
@@ -138,6 +143,7 @@ hl.layer_rule({ match = { namespace = "osk[0-9]*" }, ignore_alpha = 0.6})
 hl.layer_rule({ match = { namespace = "quickshell:.*" }, blur_popups = true})
 hl.layer_rule({ match = { namespace = "quickshell:.*" }, blur = true})
 hl.layer_rule({ match = { namespace = "quickshell:.*" }, ignore_alpha = 0.79})
+hl.layer_rule({ match = { namespace = "quickshell:background" }, blur = false})
 hl.layer_rule({ match = { namespace = "quickshell:bar" }, animation = "slide"})
 hl.layer_rule({ match = { namespace = "quickshell:actionCenter" }, no_anim = true})
 hl.layer_rule({ match = { namespace = "quickshell:cheatsheet" }, animation = "slide bottom"})

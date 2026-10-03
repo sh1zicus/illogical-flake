@@ -226,7 +226,10 @@ in
     ];
 
     # Инструменты, нужные скрипту.
-    environment.systemPackages = [ pkgs.curl pkgs.jq ];
+    environment.systemPackages = with pkgs; [
+      curl
+      jq
+    ];
 
     systemd.services.stalzone-blocker-fetch = {
       description = "Stalzone server blocker: fetch addresses and apply nftables rules";

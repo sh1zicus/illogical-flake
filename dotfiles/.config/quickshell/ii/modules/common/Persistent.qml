@@ -68,6 +68,10 @@ Singleton {
                 property int tabIndex: 0
             }
 
+            property JsonObject nixosConfig: JsonObject {
+                property real consoleHeight: 180
+            }
+
             property JsonObject sidebar: JsonObject {
                 property JsonObject bottomGroup: JsonObject {
                     property bool collapsed: false
