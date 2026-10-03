@@ -42,5 +42,6 @@ in
     # kde-material-you-colors-wrapper.sh reads it back (see dotfiles).
     gsettings-desktop-schemas
     dconf
+    gparted
   ];
 }
