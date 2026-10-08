@@ -590,15 +590,6 @@ ContentPage {
                         Config.options.apps.taskManager = text;
                     }
                 }
-                MaterialTextArea {
-                    Layout.fillWidth: true
-                    placeholderText: Translation.tr("Update")
-                    text: Config.options.apps.update
-                    wrapMode: TextEdit.Wrap
-                    onTextChanged: {
-                        Config.options.apps.update = text;
-                    }
-                }
             }
             MaterialTextArea {
                 Layout.fillWidth: true

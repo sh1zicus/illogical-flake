@@ -43,5 +43,6 @@ in
     gsettings-desktop-schemas
     dconf
     gparted
+    unrar
   ];
 }

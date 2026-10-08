@@ -25,34 +25,6 @@ ContentPage {
     }
 
     ContentSection {
-        icon: "music_cast"
-        title: Translation.tr("Music Recognition")
-
-        ConfigSpinBox {
-            icon: "timer_off"
-            text: Translation.tr("Total duration timeout (s)")
-            value: Config.options.musicRecognition.timeout
-            from: 10
-            to: 100
-            stepSize: 2
-            onValueChanged: {
-                Config.options.musicRecognition.timeout = value;
-            }
-        }
-        ConfigSpinBox {
-            icon: "av_timer"
-            text: Translation.tr("Polling interval (s)")
-            value: Config.options.musicRecognition.interval
-            from: 2
-            to: 10
-            stepSize: 1
-            onValueChanged: {
-                Config.options.musicRecognition.interval = value;
-            }
-        }
-    }
-
-    ContentSection {
         icon: "cell_tower"
         title: Translation.tr("Networking")
 
@@ -227,32 +199,6 @@ ContentPage {
             }
         }
     }
-
-    // There's no update indicator in ii for now so we shouldn't show this yet
-    // ContentSection {
-    //     icon: "deployed_code_update"
-    //     title: Translation.tr("System updates (Arch only)")
-
-    //     ConfigSwitch {
-    //         text: Translation.tr("Enable update checks")
-    //         checked: Config.options.updates.enableCheck
-    //         onCheckedChanged: {
-    //             Config.options.updates.enableCheck = checked;
-    //         }
-    //     }
-
-    //     ConfigSpinBox {
-    //         icon: "av_timer"
-    //         text: Translation.tr("Check interval (mins)")
-    //         value: Config.options.updates.checkInterval
-    //         from: 60
-    //         to: 1440
-    //         stepSize: 60
-    //         onValueChanged: {
-    //             Config.options.updates.checkInterval = value;
-    //         }
-    //     }
-    // }
 
     ContentSection {
         icon: "weather_mix"
