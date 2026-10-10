@@ -1,4 +1,5 @@
 pragma ComponentBehavior: Bound
+import qs
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.services
@@ -77,6 +78,9 @@ Rectangle {
         id: collapsedBottomWidgetGroupRow
         opacity: collapsed ? 1 : 0
         visible: opacity > 0
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
         Behavior on opacity {
             NumberAnimation {
                 id: collapsedBottomWidgetGroupRowFade
@@ -103,6 +107,10 @@ Rectangle {
             }
         }
 
+        Item {
+            Layout.fillWidth: true
+        }
+
         StyledText {
             property int remainingTasks: Todo.list.filter(task => !task.done).length
             Layout.margins: 10
@@ -111,6 +119,22 @@ Rectangle {
             text: Translation.tr("%1   •   %2 tasks").arg(DateTime.collapsedCalendarFormat).arg(remainingTasks)
             font.pixelSize: Appearance.font.pixelSize.large
             color: Appearance.colors.colOnLayer1
+        }
+
+        CalendarHeaderButton {
+            Layout.margins: 10
+            Layout.leftMargin: 0
+            forceCircle: true
+            tooltipText: Translation.tr("Open to-do window")
+            downAction: () => {
+                GlobalStates.todoWindowOpen = true;
+            }
+            contentItem: MaterialSymbol {
+                text: "task_alt"
+                iconSize: Appearance.font.pixelSize.larger
+                horizontalAlignment: Text.AlignHCenter
+                color: Appearance.colors.colOnLayer1
+            }
         }
     }
 
