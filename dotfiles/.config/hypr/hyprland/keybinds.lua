@@ -47,6 +47,8 @@ hl.bind("CTRL + SUPER + T", hl.dsp.global("quickshell:wallpaperSelectorToggle"),
     { description = "Shell: Change wallpaper" })
 hl.bind("CTRL + SUPER + ALT + T", hl.dsp.global("quickshell:wallpaperSelectorRandom"),
     { description = "Shell: Random wallpaper" })
+hl.bind("SUPER + ALT + T", hl.dsp.global("quickshell:todoWindowToggle"),
+    { description = "Shell: Toggle to-do window" })
 hl.bind("CTRL + SUPER + SHIFT + D", hl.dsp.global("quickshell:toggleLightDark"),
     { description = "Shell: Toggle light/dark mode" })
 hl.bind("CTRL + SUPER + T", hl.dsp.exec_cmd(qsIsAlive .. " || " .. qsScripts .. "/colors/switchwall.sh"))

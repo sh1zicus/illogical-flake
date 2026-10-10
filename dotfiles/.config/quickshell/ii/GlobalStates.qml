@@ -30,6 +30,7 @@ Singleton {
     property bool superReleaseMightTrigger: true
     property bool wallpaperSelectorOpen: false
     property bool nixosConfigOpen: false
+    property bool todoWindowOpen: false
     property bool workspaceShowNumbers: false
 
     onSidebarRightOpenChanged: {

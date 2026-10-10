@@ -3,7 +3,6 @@ import qs.modules.common
 import qs.modules.common.widgets
 import qs.services
 import qs.modules.ii.sidebarRight.calendar
-import qs.modules.ii.sidebarRight.todo
 import qs.modules.ii.sidebarRight.pomodoro
 import QtQuick
 import QtQuick.Layouts
@@ -23,12 +22,6 @@ Rectangle {
             "name": Translation.tr("Calendar"),
             "icon": "calendar_month",
             "widget": "calendar/CalendarWidget.qml"
-        },
-        {
-            "type": "todo",
-            "name": Translation.tr("To Do"),
-            "icon": "done_outline",
-            "widget": "todo/TodoWidget.qml"
         },
         {
             "type": "timer",

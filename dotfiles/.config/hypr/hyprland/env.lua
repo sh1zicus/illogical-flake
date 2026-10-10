@@ -4,6 +4,11 @@ local user = os.getenv("USER") or ""
 -- Wayland
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
 
+-- AMD/RADV (RX 470/580, Polaris): Graphics Pipeline Library — быстрее создание
+-- Vulkan-пайплайнов, +5-15% FPS в Vulkan-играх. Убрать, если где-то артефакты.
+hl.env("RADV_PERFTEST", "gpl")
+hl.env("AMD_VULKAN_ICD", "RADV")
+
 -- Nix profile paths
 hl.env("PATH",
     home_dir .. "/.nix-profile/bin" ..
