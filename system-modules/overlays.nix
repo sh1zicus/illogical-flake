@@ -6,7 +6,7 @@
 # сигнатуре — nixpkgs.overlays влияет на pkgs, и зависимость pkgs <- config
 # замкнулась бы в бесконечную рекурсию. system передаётся строкой из flake.
 
-{ lib, portproton-nixos, nixos-conf-editor, system, ... }:
+{ lib, portproton-nixos, system, ... }:
 
 {
   nixpkgs.overlays = [
@@ -19,13 +19,7 @@
     # Overlays PortProton-NixOS (даёт базовый пакет `portproton`).
     portproton-nixos.overlays.${system}.default
 
-    # NixOS Configuration Editor (графический редактор конфигов).
-    (final: prev: {
-      nixos-conf-editor =
-        nixos-conf-editor.packages.${system}.nixos-conf-editor;
-    })
-
-    # Правка пакаджа PortProton: штатный steam-run не содержит GTK3,
+    # Правка пакета PortProton: штатный steam-run не содержит GTK3,
     # из-за чего GUI (yad_gui_pp) не открывается
     # («libgtk-3.so.0: cannot open shared object file»).
     # Заменяем на buildFHSEnv, внутрь которого добавляем GTK и
@@ -83,14 +77,6 @@
         # Внешняя обёртка: cd в $HOME до запуска bwrap, иначе
         # падает «bwrap: Can't chdir», если запускают не из $HOME.
         paths = [
-          (final.writeShellScriptBin "portproton-wrapper" ''
-            cd "$HOME"
-            # Тема: внутри песочницы GTK не читает dconf/portal,
-            # поэтому задаём тему явно (adw-gtk3-dark ~ prefer-dark).
-            export GTK_THEME="adw-gtk3-dark"
-            export GSETTINGS_BACKEND=memory
-            exec ${fhsEnv}/bin/portproton-fhs "$@"
-          '')
           (final.writeShellScriptBin "portproton" ''
             cd "$HOME"
             export GTK_THEME="adw-gtk3-dark"

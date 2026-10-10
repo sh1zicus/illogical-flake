@@ -41,15 +41,9 @@
     portproton-nixos = {
       url = "git+https://github.com/Redm00use/PortProton-NixOS";
     };
-
-    # NixOS Configuration Editor — графическое редактирование NixOS-конфига.
-    nixos-conf-editor = {
-      url = "github:snowfallorg/nixos-conf-editor";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
-  outputs = { self, nixpkgs, home-manager, quickshell, nur, dotfiles, portproton-nixos, nixos-conf-editor, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, quickshell, nur, dotfiles, portproton-nixos, ... }@inputs:
     let
       system = "x86_64-linux";
       hostname = "nixos";
@@ -74,7 +68,7 @@
             # аргумента; system — строка, чтобы не завязывать overlays.nix
             # на pkgs (это дало бы цикл: pkgs зависит от overlays).
             _module.args = {
-              inherit portproton-nixos nixos-conf-editor system;
+              inherit portproton-nixos system;
             };
           }
 

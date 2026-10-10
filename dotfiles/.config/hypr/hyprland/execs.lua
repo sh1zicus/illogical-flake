@@ -2,7 +2,7 @@
 hl.on("hyprland.start", function ()
 
     -- Bar, wallpaper
-    hl.exec_cmd("$HOME/.config/hypr/hyprland/scripts/start_geoclue_agent.sh")
+    --hl.exec_cmd("$HOME/.config/hypr/hyprland/scripts/start_geoclue_agent.sh") -- geoclue отключён, погода по городу
     -- Run quickshell from $HOME: steam-run/bwrap (e.g. PortProton) launched via
     -- its app menu inherits this CWD, and bwrap fails with "Can't chdir" if the
     -- starting directory isn't reachable inside the FHS sandbox.

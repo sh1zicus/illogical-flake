@@ -103,7 +103,8 @@
   };
 
   programs.hyprland.enable = true;
-  services.geoclue2.enable = true;
+  # services.geoclue2.enable = true;  # отключено: геолокация не используется
+  # (погода работает по городу из конфига quickshell, GPS не задействован)
 
   # Steam + Gamescope: игры запускаются в эксклюзивном фулскрине в обход
   # композитора Hyprland — выше FPS и ниже input-lag на AMD/Wayland.

@@ -34,9 +34,6 @@ in
     # wine/proton внутри bwrap-песочницы.
     portproton
 
-    # NixOS Configuration Editor — графическое редактирование NixOS-конфига.
-    nixos-conf-editor
-
     # GSettings + dconf: needed for the end-4 wallpaper pipeline, which stores
     # the dark/light mode in org.gnome.desktop.interface.color-scheme and
     # kde-material-you-colors-wrapper.sh reads it back (see dotfiles).

@@ -103,9 +103,7 @@ in
       hyprsunset
       wayland-protocols
       wl-clipboard
-
-      # Gaming
-      gamemode
+      # gamemode ставится системно через programs.gamemode (system-modules/services.nix)
 
       # Development libraries
       libsoup_3

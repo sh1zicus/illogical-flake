@@ -73,7 +73,6 @@ EOF
                   pkgs.kdePackages.qtwayland
                   pkgs.kdePackages.qtimageformats
                   pkgs.kdePackages.plasma-integration
-                  pkgs.qt6Packages.qt6ct
                   pkgs.darkly
                 ]}" \
                 --set QT_QPA_PLATFORMTHEME "kde" \
