@@ -4,6 +4,7 @@
   imports = [
     ./illogical.nix   # end-4 (Illogical Impulse) dotfiles
     ./apps.nix        # пользовательские приложения
+    ./zen-wabi.nix    # matugen-тема для Zen Browser (fx-autoconfig + мост)
   ];
 
   home.username = "daen2772";

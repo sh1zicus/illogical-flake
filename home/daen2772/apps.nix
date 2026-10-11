@@ -41,7 +41,6 @@
       });
     in mkExtensionSettings {
       "uBlock0@raymondhill.net" = "ublock-origin";
-      "addon@darkreader.org" = "darkreader";
     };
     profiles.default = {
       id = 0;

@@ -32,3 +32,25 @@ output_path = '~/.local/state/quickshell/user/generated/color.txt'
 [templates.wallpaper]
 input_path = '~/.config/matugen/templates/wallpaper.txt'
 output_path = '~/.local/state/quickshell/user/generated/wallpaper/path.txt'
+
+# Zen Browser (zen-wabi bridge). Renders chrome/content CSS + the 8-color
+# JSON watched by matugen-bridge.uc.js. Profile dir is fixed to "default".
+[templates.zen_userchrome]
+input_path = '~/.config/matugen/templates/zen/userChrome.css'
+output_path = '~/.config/zen/default/chrome/userChrome.css'
+
+[templates.zen_usercontent]
+input_path = '~/.config/matugen/templates/zen/userContent.css'
+output_path = '~/.config/zen/default/chrome/userContent.css'
+
+[templates.zen_userstyles]
+input_path = '~/.config/matugen/templates/zen/userContent.css'
+output_path = '~/.config/zen/default/chrome/matugen-userstyles.css'
+
+[templates.zen_userstyles_github]
+input_path = '~/.config/matugen/templates/zen/userContent.github.css'
+output_path = '~/.config/zen/default/chrome/matugen-userstyles-github.css'
+
+[templates.zen_vars]
+input_path = '~/.config/matugen/templates/zen/matugen-vars.json'
+output_path = '~/.config/zen/default/chrome/matugen-vars.json'

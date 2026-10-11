@@ -77,6 +77,9 @@
             home-manager = {
               useGlobalPkgs = true;
               useUserPackages = true;
+              # Прокидываем флейк-входы в home-модули (нужен zen-browser
+              # в home/daen2772/zen-wabi.nix для патча unwrapped-пакета).
+              extraSpecialArgs = { inherit inputs; };
               users.daen2772 = {
                 imports = [
                   illogicalModule
