@@ -32,6 +32,9 @@ Singleton {
     id: root
     property var filePath: Directories.todoPath
     property var list: []
+    property var undoStack: []
+
+    signal itemDeleted(string content)
 
     // Цвета приоритета. M3-палитра тут фиолетовая, поэтому зелёный/жёлтый/красный
     // задаём явно, а нейтральный берём из темы.
@@ -68,6 +71,12 @@ Singleton {
             "timerEnd": typeof item.timerEnd === "number" ? item.timerEnd : 0,
             "timerRemaining": typeof item.timerRemaining === "number" ? item.timerRemaining : 0,
             "command": item.command ?? "",
+            "createdAt": typeof item.createdAt === "number" ? item.createdAt : 0,
+            "tags": Array.isArray(item.tags) ? item.tags : [],
+            "due": typeof item.due === "number" ? item.due : 0,
+            "recurrence": item.recurrence ?? "none",
+            "reminded": item.reminded === true,
+            "doneAt": typeof item.doneAt === "number" ? item.doneAt : 0,
         }
     }
 
@@ -78,8 +87,19 @@ Singleton {
     }
 
     function addItem(item) {
-        root.list.push(normalize(item))
+        const norm = normalize(item)
+        if (!norm.createdAt) norm.createdAt = Date.now() / 1000
+        root.list.push(norm)
         save()
+    }
+
+    function moveItem(from, to) {
+        if (from < 0 || from >= root.list.length) return;
+        to = Math.max(0, Math.min(to, root.list.length - 1));
+        if (from === to) return;
+        const moved = root.list.splice(from, 1)[0];
+        root.list.splice(to, 0, moved);
+        save();
     }
 
     function addTask(desc) {
@@ -94,12 +114,63 @@ Singleton {
 
     function deleteItem(index) {
         if (index < 0 || index >= root.list.length) return;
-        root.list.splice(index, 1)
-        save()
+        const removed = root.list.splice(index, 1)[0];
+        root.undoStack = root.undoStack.concat([{ "index": index, "item": removed }]);
+        if (root.undoStack.length > 20)
+            root.undoStack = root.undoStack.slice(root.undoStack.length - 20);
+        save();
+        root.itemDeleted((removed && removed.content) ? removed.content : "");
+    }
+
+    function undoDelete() {
+        if (root.undoStack.length === 0) return;
+        const entry = root.undoStack[root.undoStack.length - 1];
+        root.undoStack = root.undoStack.slice(0, root.undoStack.length - 1);
+        const idx = Math.min(Math.max(entry.index, 0), root.list.length);
+        root.list.splice(idx, 0, entry.item);
+        save();
+    }
+
+    function clearUndo() {
+        root.undoStack = [];
+    }
+
+    function nextDue(item) {
+        const cur = (item.due > 0) ? item.due : root.now;
+        const day = 86400;
+        if (item.recurrence === "daily") return cur + day;
+        if (item.recurrence === "weekly") return cur + 7 * day;
+        if (item.recurrence === "monthly") return cur + 30 * day;
+        return cur;
     }
 
     function setDone(index, done) {
-        updateItem(index, { "done": !!done })
+        const item = root.list[index];
+        if (!item) return;
+        if (done && item.recurrence && item.recurrence !== "none") {
+            updateItem(index, { "due": nextDue(item), "reminded": false });
+            return;
+        }
+        updateItem(index, { "done": !!done, "doneAt": done ? root.now : 0 });
+    }
+
+    function setTags(index, tags) {
+        const clean = (tags ?? []).map(function (t) { return String(t).trim(); })
+            .filter(function (t) { return t.length > 0; });
+        updateItem(index, { "tags": clean });
+    }
+
+    function setDue(index, due) {
+        updateItem(index, { "due": Math.max(0, Math.floor(due || 0)), "reminded": false });
+    }
+
+    function setRecurrence(index, recurrence) {
+        updateItem(index, { "recurrence": recurrence || "none" });
+    }
+
+    function clearCompleted() {
+        root.list = root.list.filter(function (item) { return !item.done; });
+        save();
     }
 
     function markDone(index) { setDone(index, true) }
@@ -249,6 +320,32 @@ Singleton {
             Quickshell.execDetached(["bash", "-c", item.command]);
     }
 
+    function checkDue() {
+        const nowSec = root.now;
+        let changed = false;
+        for (let i = 0; i < root.list.length; i++) {
+            const item = root.list[i];
+            if (item && !item.done && item.due > 0 && !item.reminded && item.due <= nowSec) {
+                item.reminded = true;
+                root.notifyDue(item);
+                changed = true;
+            }
+        }
+        if (changed) root.save();
+    }
+
+    function notifyDue(item) {
+        Quickshell.execDetached([
+            "notify-send",
+            "-a", "Shell",
+            "-u", "normal",
+            "-h", "string:x-canonical-private-synchronous:due",
+            Translation.tr("Task due"),
+            (item.content ?? "")
+        ]);
+        root.playAlarmSound();
+    }
+
     function playAlarmSound() {
         const theme = String(Config.options.sounds.theme ?? "freedesktop").replace(/[^a-zA-Z0-9_.-]/g, "");
         const cmd = "for d in /run/current-system/sw/share/sounds /usr/share/sounds \"$HOME/.local/share/sounds\"; do "
@@ -257,13 +354,69 @@ Singleton {
         Quickshell.execDetached(["bash", "-c", cmd]);
     }
 
+    // ------------------------------------------------- статистика за день
+    function dayStart(offsetDays) {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + (offsetDays ?? 0));
+        return d.getTime() / 1000;
+    }
+
+    function doneOn(offsetDays) {
+        const a = root.dayStart(offsetDays);
+        const b = root.dayStart((offsetDays ?? 0) + 1);
+        return root.list.filter(function (it) {
+            return it.done && it.doneAt >= a && it.doneAt < b;
+        }).length;
+    }
+
+    readonly property int doneTodayCount: root.doneOn(0)
+    readonly property int doneYesterdayCount: root.doneOn(-1)
+    readonly property int streak: {
+        let s = 0;
+        let off = root.doneOn(0) > 0 ? 0 : -1;
+        while (root.doneOn(off) > 0) {
+            s++;
+            off--;
+        }
+        return s;
+    }
+
+    // ------------------------------------------- напоминание в конце дня
+    property int endOfDayHour: 22
+    property string lastReminderDay: ""
+
+    function dayStamp() {
+        const d = new Date();
+        return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+    }
+
+    function checkEndOfDay() {
+        if (new Date().getHours() < root.endOfDayHour) return;
+        const stamp = root.dayStamp();
+        if (root.lastReminderDay === stamp) return;
+        const unfinished = root.list.filter(function (it) { return !it.done; });
+        if (unfinished.length === 0) return;
+        root.lastReminderDay = stamp;
+        Quickshell.execDetached([
+            "notify-send",
+            "-a", "Shell",
+            "-u", "normal",
+            "-h", "string:x-canonical-private-synchronous:todo-endofday",
+            Translation.tr("Unfinished tasks"),
+            Translation.tr("%1 tasks are still unfinished").arg(unfinished.length)
+        ]);
+    }
+
     Timer {
         interval: 1000
         repeat: true
-        running: root.anyTimerRunning
+        running: true
         onTriggered: {
             root.now = Date.now() / 1000;
             root.checkTimers();
+            root.checkDue();
+            root.checkEndOfDay();
         }
     }
 

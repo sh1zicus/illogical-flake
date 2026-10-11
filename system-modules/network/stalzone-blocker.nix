@@ -122,15 +122,14 @@ let
       echo "}"
     } > "${nftScript}"
 
-    # Применяем атомарно: удаляем прошлую таблицу, если есть, затем грузим новую.
-    # Ошибка nft тоже не должна ронять юнит (иначе опять сломается switch) —
-    # старая таблица при этом остаётся активной.
+    # Применяем атомарно: всегда удаляем прошлую таблицу, затем грузим новую.
+    # Без предварительного delete `nft -f` ДОБАВЛЯЕТ правила к существующей
+    # цепочке (а не заменяет), из-за чего при каждом запуске копии копятся.
+    # Ошибка nft не должна ронять юнит (иначе сломается switch-to-configuration).
+    nft delete table inet stalzone_blocker 2>/dev/null || true
     if ! nft -f "${nftScript}"; then
-      nft delete table inet stalzone_blocker 2>/dev/null || true
-      if ! nft -f "${nftScript}"; then
-        echo "stalzone-blocker: не удалось применить правила nftables" >&2
-        exit 0
-      fi
+      echo "stalzone-blocker: не удалось применить правила nftables" >&2
+      exit 0
     fi
   '';
 in

@@ -39,8 +39,13 @@
     # Java + Wine активно мапят память; дефолтных 65530 может не хватить.
     "vm.max_map_count" = 262144;
     "net.ipv4.tcp_congestion_control" = "bbr";
-    "net.core.default_qdisc" = "fq";
+    # cake вместо fq: AQM сглаживает джиттер и буферблоат под нагрузкой.
+    # Для игрового UDP (Stalcraft) это важнее, чем для TCP — bbr лечит только TCP.
+    "net.core.default_qdisc" = "cake";
   };
+
+  # Модуль cake нужен доступным до применения net.core.default_qdisc.
+  boot.kernelModules = [ "sch_cake" ];
 
   # Планировщик ввода-вывода: mq-deadline → kyber (ниже латентность
   # случайных чтений ассетов игры). Применяется при ресиде юнита

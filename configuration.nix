@@ -38,8 +38,8 @@
     };
 
   # Динамическая блокировка серверов Stalzone/Stalcraft. Разрешаем только
-  # региональные пулы EKB (Екатеринбург) и NSK1 (Новосибирск) — всё остальное
-  # блокируется (список IP тянется из API, см. stalzone-blocker.nix).
+  # пулы EKB (Екатеринбург) и NSK1 (Новосибирск) — всё остальное блокируется
+  # (список IP тянется из API, см. stalzone-blocker.nix).
   services.stalzone-blocker = {
     enable = true;
     login = "nixos";

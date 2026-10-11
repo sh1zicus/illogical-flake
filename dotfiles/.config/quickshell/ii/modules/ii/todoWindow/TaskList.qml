@@ -16,6 +16,7 @@ Item {
     property int todoListItemSpacing: 8
     property int todoListItemPadding: 12
     property int listBottomPadding: 80
+    property string listKey: ""
 
     signal editRequested(int index)
 
@@ -32,6 +33,20 @@ Item {
         const s = total % 60
         const pad = (n) => (n < 10 ? "0" + n : "" + n)
         return h > 0 ? (h + ":" + pad(m) + ":" + pad(s)) : (pad(m) + ":" + pad(s))
+    }
+
+    function formatDue(due) {
+        const pad = (n) => (n < 10 ? "0" + n : "" + n)
+        const d = new Date(due * 1000)
+        const now = new Date()
+        const sameDay = d.getFullYear() === now.getFullYear()
+            && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+        if (sameDay) return pad(d.getHours()) + ":" + pad(d.getMinutes())
+        return pad(d.getDate()) + "." + pad(d.getMonth() + 1)
+    }
+
+    function isOverdue(due, done) {
+        return !done && due > 0 && due <= Todo.now
     }
 
     // Небольшая иконочная кнопка для служебных контролов (чекбокс подпункта,
@@ -195,26 +210,116 @@ Item {
                             Layout.margins: root.todoListItemPadding
                             spacing: 8
 
-                        // -------------------------------------------------- заголовок
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            MaterialSymbol {
-                                Layout.alignment: Qt.AlignTop
-                                visible: todoItem.modelData.done
-                                text: "check_circle"
-                                iconSize: Appearance.font.pixelSize.normal
-                                color: Appearance.colors.colPrimary
-                            }
-                            SelectableText {
+                            RowLayout { // заголовок
                                 Layout.fillWidth: true
-                                text: todoItem.modelData.content
-                                font.pixelSize: Appearance.font.pixelSize.normal
-                                color: todoItem.modelData.done
-                                    ? Appearance.colors.colOnLayer1Inactive
-                                    : Appearance.colors.colOnLayer1
+                                spacing: 8
+
+                                MiniButton {
+                                    Layout.alignment: Qt.AlignTop
+                                    implicitWidth: 26
+                                    implicitHeight: 26
+                                    symbol: todoItem.modelData.done ? "check_circle" : "radio_button_unchecked"
+                                    colText: todoItem.modelData.done
+                                        ? Appearance.colors.colPrimary
+                                        : Appearance.colors.colOnLayer1Inactive
+                                    onClicked: Todo.setDone(todoItem.modelData.originalIndex, !todoItem.modelData.done)
+                                    StyledToolTip {
+                                        text: todoItem.modelData.done ? Translation.tr("Unfinished") : Translation.tr("Done")
+                                    }
+                                }
+                                SelectableText {
+                                    Layout.fillWidth: true
+                                    text: todoItem.modelData.content
+                                    font.pixelSize: Appearance.font.pixelSize.normal
+                                    color: todoItem.modelData.done
+                                        ? Appearance.colors.colOnLayer1Inactive
+                                        : Appearance.colors.colOnLayer1
+                                }
                             }
+
+                            // ---------------------------------------- бейджи: дедлайн/повтор/теги
+                        RowLayout {
+                            id: badgesRow
+                            Layout.fillWidth: true
+                            spacing: 6
+                            visible: (todoItem.modelData.due ?? 0) > 0
+                                || (todoItem.modelData.recurrence && todoItem.modelData.recurrence !== "none")
+                                || (todoItem.modelData.tags ?? []).length > 0
+
+                            Rectangle { // дедлайн
+                                Layout.alignment: Qt.AlignVCenter
+                                visible: (todoItem.modelData.due ?? 0) > 0
+                                implicitHeight: 20
+                                implicitWidth: dueRow.implicitWidth + 14
+                                radius: height / 2
+                                color: {
+                                    const c = root.isOverdue(todoItem.modelData.due, todoItem.modelData.done)
+                                        ? Appearance.colors.colError : Appearance.colors.colOnLayer1Inactive
+                                    return ColorUtils.transparentize(c, 0.85)
+                                }
+                                RowLayout {
+                                    id: dueRow
+                                    anchors.centerIn: parent
+                                    spacing: 4
+                                    MaterialSymbol {
+                                        Layout.alignment: Qt.AlignVCenter
+                                        text: "event"
+                                        iconSize: Appearance.font.pixelSize.small
+                                        color: root.isOverdue(todoItem.modelData.due, todoItem.modelData.done)
+                                            ? Appearance.colors.colError : Appearance.colors.colOnLayer1Inactive
+                                    }
+                                    StyledText {
+                                        Layout.alignment: Qt.AlignVCenter
+                                        text: root.formatDue(todoItem.modelData.due)
+                                        font.pixelSize: Appearance.font.pixelSize.smallest
+                                        color: root.isOverdue(todoItem.modelData.due, todoItem.modelData.done)
+                                            ? Appearance.colors.colError : Appearance.colors.colOnLayer1Inactive
+                                    }
+                                }
+                            }
+
+                            RowLayout { // повтор
+                                Layout.alignment: Qt.AlignVCenter
+                                visible: todoItem.modelData.recurrence && todoItem.modelData.recurrence !== "none"
+                                spacing: 3
+                                MaterialSymbol {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    text: "repeat"
+                                    iconSize: Appearance.font.pixelSize.small
+                                    color: Appearance.colors.colOnLayer1Inactive
+                                }
+                                StyledText {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    text: ({
+                                        "daily": Translation.tr("Daily"),
+                                        "weekly": Translation.tr("Weekly"),
+                                        "monthly": Translation.tr("Monthly"),
+                                    })[todoItem.modelData.recurrence] ?? ""
+                                    font.pixelSize: Appearance.font.pixelSize.smallest
+                                    color: Appearance.colors.colOnLayer1Inactive
+                                }
+                            }
+
+                            Repeater { // теги
+                                model: todoItem.modelData.tags ?? []
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    Layout.alignment: Qt.AlignVCenter
+                                    implicitHeight: 20
+                                    implicitWidth: tagLabel.implicitWidth + 14
+                                    radius: height / 2
+                                    color: Appearance.colors.colSecondaryContainer
+                                    StyledText {
+                                        id: tagLabel
+                                        anchors.centerIn: parent
+                                        text: modelData
+                                        font.pixelSize: Appearance.font.pixelSize.smallest
+                                        color: Appearance.colors.colOnSecondaryContainer
+                                    }
+                                }
+                            }
+
+                            Item { Layout.fillWidth: true }
                         }
 
                         // -------------------------------------------------- тело по типу
@@ -276,6 +381,39 @@ Item {
                                         }
                                     }
                                 }
+                            }
+                        }
+
+                        RowLayout { // авто-прогресс чеклиста
+                            id: checklistProgress
+                            Layout.fillWidth: true
+                            Layout.topMargin: 2
+                            visible: todoItem.modelData.type === "checklist" && (todoItem.modelData.items ?? []).length > 0
+                            spacing: 6
+
+                            readonly property var subs: todoItem.modelData.items ?? []
+                            readonly property int subDone: subs.filter(function (s) { return s.done; }).length
+                            readonly property int subTotal: subs.length
+                            readonly property real ratio: subTotal > 0 ? subDone / subTotal : 0
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignVCenter
+                                implicitHeight: 4
+                                radius: 2
+                                color: ColorUtils.transparentize(Appearance.colors.colOnLayer1, 0.8)
+                                Rectangle {
+                                    width: parent.width * checklistProgress.ratio
+                                    height: parent.height
+                                    radius: 2
+                                    color: root.progressColor(checklistProgress.ratio)
+                                }
+                            }
+                            StyledText {
+                                Layout.alignment: Qt.AlignVCenter
+                                text: checklistProgress.subDone + "/" + checklistProgress.subTotal
+                                font.pixelSize: Appearance.font.pixelSize.smallest
+                                color: Appearance.colors.colOnLayer1Inactive
                             }
                         }
 

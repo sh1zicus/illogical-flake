@@ -27,6 +27,9 @@ Item {
     property int dlgMinutes: 1
     property int dlgSeconds: 0
     property string dlgCommand: ""
+    property string dlgTags: ""
+    property real dlgDue: 0
+    property string dlgRecurrence: "none"
 
     readonly property var typeList: [
         {"id": "text", "name": Translation.tr("Text"), "icon": "notes"},
@@ -41,13 +44,39 @@ Item {
         {"id": "medium", "name": Translation.tr("Medium"), "color": "#FFB300"},
         {"id": "high", "name": Translation.tr("High"), "color": "#E53935"}
     ]
+    readonly property var dueOptions: [
+        {"id": -1, "name": Translation.tr("None")},
+        {"id": 0, "name": Translation.tr("Today")},
+        {"id": 1, "name": Translation.tr("Tomorrow")},
+        {"id": 3, "name": Translation.tr("In 3 days")},
+        {"id": 7, "name": Translation.tr("In a week")}
+    ]
+    readonly property var recurrenceList: [
+        {"id": "none", "name": Translation.tr("None")},
+        {"id": "daily", "name": Translation.tr("Daily")},
+        {"id": "weekly", "name": Translation.tr("Weekly")},
+        {"id": "monthly", "name": Translation.tr("Monthly")}
+    ]
 
-    readonly property var unfinishedList: Todo.list
+    function computeDue(days) {
+        if (days < 0) return 0;
+        const d = new Date();
+        d.setHours(23, 59, 0, 0);
+        d.setDate(d.getDate() + days);
+        return Math.floor(d.getTime() / 1000);
+    }
+
+    function sortItems(arr) {
+        const w = { "high": 0, "medium": 1, "low": 2, "none": 3 };
+        return arr.slice(0).sort((x, y) => (w[x.priority] ?? 3) - (w[y.priority] ?? 3));
+    }
+
+    readonly property var unfinishedList: sortItems(Todo.list
         .map(function(item, i) { return Object.assign({}, item, {originalIndex: i}); })
-        .filter(function(item) { return !item.done; })
-    readonly property var doneList: Todo.list
+        .filter(function(item) { return !item.done; }))
+    readonly property var doneList: sortItems(Todo.list
         .map(function(item, i) { return Object.assign({}, item, {originalIndex: i}); })
-        .filter(function(item) { return item.done; })
+        .filter(function(item) { return item.done; }))
 
     function openAdd() {
         root.editingIndex = -1
@@ -63,6 +92,9 @@ Item {
         root.dlgMinutes = 1
         root.dlgSeconds = 0
         root.dlgCommand = ""
+        root.dlgTags = ""
+        root.dlgDue = 0
+        root.dlgRecurrence = "none"
         titleInput.text = ""
         codeArea.text = ""
         curInput.text = "0"
@@ -72,7 +104,13 @@ Item {
         minuteInput.text = "1"
         secondInput.text = "0"
         cmdInput.text = ""
+        tagsInput.text = ""
         root.showAddDialog = true
+    }
+
+    function openAddChecklist() {
+        openAdd()
+        root.dlgType = "checklist"
     }
 
     function openEdit(index) {
@@ -92,6 +130,9 @@ Item {
         root.dlgMinutes = Math.floor((dur % 3600) / 60)
         root.dlgSeconds = dur % 60
         root.dlgCommand = item.command ?? ""
+        root.dlgTags = (item.tags ?? []).join(", ")
+        root.dlgDue = item.due ?? 0
+        root.dlgRecurrence = item.recurrence ?? "none"
         titleInput.text = root.dlgContent
         codeArea.text = root.dlgCode
         curInput.text = root.dlgCurrent.toString()
@@ -101,6 +142,7 @@ Item {
         minuteInput.text = root.dlgMinutes.toString()
         secondInput.text = root.dlgSeconds.toString()
         cmdInput.text = root.dlgCommand
+        tagsInput.text = root.dlgTags
         root.showAddDialog = true
     }
 
@@ -114,6 +156,9 @@ Item {
             "items": root.dlgItems,
             "current": root.dlgCurrent,
             "total": root.dlgTotal,
+            "tags": root.dlgTags.split(",").map(function (t) { return t.trim(); }).filter(function (t) { return t.length > 0; }),
+            "due": root.dlgDue,
+            "recurrence": root.dlgRecurrence,
         }
         if (root.dlgType === "timer") {
             const dur = root.dlgHours * 3600 + root.dlgMinutes * 60 + root.dlgSeconds
@@ -232,6 +277,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 listBottomPadding: 8
+                listKey: "unfinished"
                 emptyPlaceholderIcon: "check_circle"
                 emptyPlaceholderText: Translation.tr("Nothing here!")
                 taskList: root.unfinishedList
@@ -257,8 +303,9 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 listBottomPadding: 8
+                listKey: "done"
                 emptyPlaceholderIcon: "checklist"
-                emptyPlaceholderText: Translation.tr("Finished tasks will go here")
+                emptyPlaceholderText: Translation.tr("Nothing here!")
                 taskList: root.doneList
                 onEditRequested: (index) => root.openEdit(index)
             }
@@ -361,6 +408,75 @@ Item {
                                         : modelData.color
                                     dotColor: modelData.color
                                     onClicked: root.dlgPriority = modelData.id
+                                }
+                            }
+                            Item { Layout.fillWidth: true }
+                        }
+                    }
+
+                    // ------------------------------------------- теги
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        StyledText {
+                            color: Appearance.colors.colOnSurfaceVariant
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            text: Translation.tr("Tags (comma separated)")
+                        }
+                        Field {
+                            id: tagsInput
+                            Layout.fillWidth: true
+                            placeholderText: Translation.tr("e.g. work, home")
+                            onTextChanged: root.dlgTags = text
+                        }
+                    }
+
+                    // ------------------------------------------- дедлайн
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        StyledText {
+                            color: Appearance.colors.colOnSurfaceVariant
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            text: Translation.tr("Due date")
+                        }
+                        RowLayout {
+                            spacing: 6
+                            Repeater {
+                                model: root.dueOptions
+                                delegate: ChoiceChip {
+                                    required property var modelData
+                                    label: modelData.name
+                                    selected: modelData.id < 0
+                                        ? (root.dlgDue === 0)
+                                        : (root.dlgDue > 0 && Math.abs(root.dlgDue - root.computeDue(modelData.id)) < 60)
+                                    accent: Appearance.colors.colPrimary
+                                    onClicked: root.dlgDue = root.computeDue(modelData.id)
+                                }
+                            }
+                            Item { Layout.fillWidth: true }
+                        }
+                    }
+
+                    // ------------------------------------------- повтор
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        StyledText {
+                            color: Appearance.colors.colOnSurfaceVariant
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            text: Translation.tr("Repeat")
+                        }
+                        RowLayout {
+                            spacing: 6
+                            Repeater {
+                                model: root.recurrenceList
+                                delegate: ChoiceChip {
+                                    required property var modelData
+                                    label: modelData.name
+                                    selected: root.dlgRecurrence === modelData.id
+                                    accent: Appearance.colors.colPrimary
+                                    onClicked: root.dlgRecurrence = modelData.id
                                 }
                             }
                             Item { Layout.fillWidth: true }
