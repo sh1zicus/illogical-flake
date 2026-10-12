@@ -1,0 +1,30 @@
+/* YouTube Music — clean "app" look: no scrollbars and a transparent
+ * background so the compositor opacity/blur (Hyprland) shows through.
+ * Injected only on music.youtube.com by matugen-bridge.uc.js
+ * (HOST_TO_FILE maps the hostname to suffix "youtube"). */
+
+html,
+body,
+* {
+  scrollbar-width: none !important;
+}
+
+/* Re-point YouTube's own theme background vars to transparent. Cards,
+ * menus and raised surfaces keep their colors so content stays readable. */
+html {
+  --yt-spec-base-background: transparent !important;
+  --yt-spec-general-background-a: transparent !important;
+  --yt-spec-general-background-b: transparent !important;
+  --yt-spec-general-background-c: transparent !important;
+  --yt-spec-general-background: transparent !important;
+}
+
+html,
+body,
+ytmusic-app,
+ytmusic-app-layout,
+#content,
+#main-panel,
+ytmusic-browse-response {
+  background: transparent !important;
+}

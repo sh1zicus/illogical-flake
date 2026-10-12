@@ -1115,3 +1115,43 @@ findbar {
 #zen-media-controls-toolbar #zen-media-progress-bar::-moz-range-track {
   background: var(--matugen-bg-light) !important;
 }
+
+/* ============================================================
+ * 9. WEB APP (taskbar tab) WINDOWS — only the site
+ *    Windows created via "Create Web App" get :root[taskbartab].
+ *    Remove every bit of browser chrome; show just the page.
+ * ============================================================ */
+:root[taskbartab] :is(
+  #navigator-toolbox,
+  #sidebar-box,
+  #TabsToolbar,
+  #toolbar-menubar,
+  #nav-bar,
+  #zen-appcontent-navbar-container
+) {
+  display: none !important;
+}
+
+/* Zen normally insets the page (right/left/bottom gap + rounded
+ * corners). Remove it so the site fills the entire window. */
+:root[taskbartab] {
+  --zen-element-separation: 0px !important;
+}
+
+:root[taskbartab] :is(#zen-tabbox-wrapper, #tabbrowser-tabbox) {
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+:root[taskbartab] #tabbrowser-tabpanels .browserSidebarContainer {
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+/* Make the content surface transparent too, otherwise Zen paints an
+ * opaque backdrop (rgb(32,32,32)) behind the page and the compositor
+ * blur/opacity never shows through. */
+:root[taskbartab] #tabbrowser-tabpanels .browserSidebarContainer browser[type="content"] {
+  background: transparent !important;
+}

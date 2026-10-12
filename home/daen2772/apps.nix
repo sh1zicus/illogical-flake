@@ -26,6 +26,10 @@
   home.packages = with pkgs; [
     v4l-utils
     libva-utils
+
+    # Nuclear — бесплатный стриминговый плеер (ищет музыку в открытых
+    # источниках, подписка не нужна, работает в РФ).
+    nuclear
   ];
 
   # Zen Browser (Firefox-форк) — основной браузер.
@@ -47,6 +51,9 @@
       name = "default";
       settings = {
         "widget.gtk.ignore-adwaita" = false;
+
+        # Web Apps (Taskbar Tabs): кнопка «Create Web App» в адресной строке.
+        "browser.taskbarTabs.enabled" = true;
 
         # Русский интерфейс (Download langpack при первом запуске).
         "intl.locale.requested" = "ru";

@@ -3,13 +3,13 @@
 -- Disable blur for xwayland context menus
 hl.window_rule({match = {class = "^()$", title = "^()$" },                   no_blur = true })
 
--- Blur for terminals and quickshell windows; everything else stays sharp.
--- This used to be `no_blur` on class = ".*", which killed blur everywhere.
--- Hyprland has no `blur` window rule -- `no_blur` is a one-way flag applied at
--- window creation and cannot be overridden by a later rule -- so the global
--- rule can only be inverted, not amended. Hence the negative lookahead:
--- match everything EXCEPT the windows that should get blur.
-hl.window_rule({match = {class = "^(?!foot$|org\\.quickshell$).*$" }, no_blur = true })
+-- Blur for terminals, quickshell and Zen web-app windows; everything else
+-- stays sharp. This used to be `no_blur` on class = ".*", which killed blur
+-- everywhere. Hence the negative lookahead: match everything EXCEPT the
+-- windows that should get blur. (Zen web apps -- taskbar tabs -- get their own
+-- WM class `zen-twilight.webapp-<uuid>`, distinct from the browser's
+-- `zen-twilight`, so the main browser window stays sharp.)
+hl.window_rule({match = {class = "^(?!foot$|org\\.quickshell$|zen-twilight\\.webapp-).*$" }, no_blur = true })
 
 -- Floating
 hl.window_rule({match = {title = "^(Open File)(.*)$" },                      center = true})
@@ -92,6 +92,11 @@ hl.window_rule({match = {class = "^(steam_app).*" }, immediate = true})
 
 -- No shadow for tiled windows
 hl.window_rule({match = {float = 0 }, no_shadow = true})
+
+-- Zen web apps (taskbar tabs): translucent + rounded so the blur shows
+-- through. The main browser window is unaffected (no opacity rule on it).
+hl.window_rule({match = {class = "^zen-twilight\\.webapp-.*$" }, opacity = "0.9 0.8"})
+hl.window_rule({match = {class = "^zen-twilight\\.webapp-.*$" }, rounding = 12 })
 
 -- ######## Workspace rules ########
 hl.workspace_rule({ workspace = "special:special", gaps_out = 30 })

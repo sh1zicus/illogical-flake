@@ -51,6 +51,10 @@ output_path = '~/.config/zen/default/chrome/matugen-userstyles.css'
 input_path = '~/.config/matugen/templates/zen/userContent.github.css'
 output_path = '~/.config/zen/default/chrome/matugen-userstyles-github.css'
 
+[templates.zen_userstyles_youtube]
+input_path = '~/.config/matugen/templates/zen/userContent.youtube.css'
+output_path = '~/.config/zen/default/chrome/matugen-userstyles-youtube.css'
+
 [templates.zen_vars]
 input_path = '~/.config/matugen/templates/zen/matugen-vars.json'
 output_path = '~/.config/zen/default/chrome/matugen-vars.json'

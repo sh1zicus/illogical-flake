@@ -100,6 +100,7 @@ const HOST_TO_FILE = {
   "gist.github.com": "github",
   "docs.github.com": "github",
   "raw.githubusercontent.com": "github",
+  "music.youtube.com": "youtube",
 };
 
 // Per-site boost config — sibling of HOST_TO_FILE. When a hostname
