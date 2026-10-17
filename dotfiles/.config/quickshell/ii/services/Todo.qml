@@ -350,7 +350,7 @@ Singleton {
         const theme = String(Config.options.sounds.theme ?? "freedesktop").replace(/[^a-zA-Z0-9_.-]/g, "");
         const cmd = "for d in /run/current-system/sw/share/sounds /usr/share/sounds \"$HOME/.local/share/sounds\"; do "
             + "f=\"$d/" + theme + "/stereo/alarm-clock-elapsed.oga\"; "
-            + "if [ -f \"$f\" ]; then ffplay -nodisp -autoexit -loglevel quiet \"$f\" >/dev/null 2>&1; break; fi; done";
+            + "if [ -f \"$f\" ]; then ffplay -nodisp -autoexit -loglevel quiet -volume 40 \"$f\" >/dev/null 2>&1; break; fi; done";
         Quickshell.execDetached(["bash", "-c", cmd]);
     }
 
