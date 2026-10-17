@@ -41,5 +41,6 @@ in
     dconf
     gparted
     unrar
+    cpupower
   ];
 }
