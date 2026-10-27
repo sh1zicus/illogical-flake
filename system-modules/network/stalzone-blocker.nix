@@ -238,7 +238,8 @@ in
       path = with pkgs; [ curl jq nftables coreutils gnused ];
       serviceConfig = {
         Type = "oneshot";
-        RemainAfterExit = true;
+        # Не оставляем юнит активным после выхода: иначе таймер не может
+        # запустить следующий fetch, и список серверов больше не обновляется.
         ExecStart = updateScript;
       };
     };

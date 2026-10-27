@@ -7,8 +7,10 @@
     enable = true;
 
     firewall = {
-      # Only mangle traffic on the real outbound interface.
-      interfaces = [ "enp6s0" ];
+      # Матчим физические интерфейсы по шаблону, а не одно имя: при
+      # переименовании enp6s0 или подключении Wi-Fi/USB-модема обход
+      # продолжит работать. VPN/tun-интерфейсы намеренно не трогаем.
+      interfaces = [ "en*" "eth*" "wl*" "ww*" "usb*" ];
 
       # Focus: Discord uses TLS on 443 and voice (STUN/QUIC) over UDP.
       # Cloudflare WARP API (api.cloudflareclient.com) is SNI-blocked the same way,
