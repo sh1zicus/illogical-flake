@@ -940,9 +940,12 @@ Item {
                             Layout.fillWidth: true
                             spacing: 6
 
-                            MaterialSymbol {
-                                text: "data_object"
-                                iconSize: Appearance.font.pixelSize.larger
+                            CustomIcon {
+                                Layout.alignment: Qt.AlignVCenter
+                                width: 22
+                                height: 22
+                                source: "nixos-symbolic.svg"
+                                colorize: true
                                 color: Appearance.colors.colOnLayer1
                             }
                             StyledText {
@@ -1192,7 +1195,7 @@ Item {
                         id: editorToolbar
                         visible: root.viewMode === 0
                         property int gap: 6
-                        readonly property int buttonCount: 7
+                        readonly property int buttonCount: 6
                         readonly property real slotWidth: (width - 8 - gap * (buttonCount - 1)) / buttonCount
                         readonly property bool compact: slotWidth < 125
                         implicitWidth: 0
@@ -1213,17 +1216,6 @@ Item {
                                 margins: 4
                             }
                             spacing: editorToolbar.gap
-
-                            IconAndTextToolbarButton {
-                                implicitHeight: 32
-                                Layout.fillWidth: true
-                                Layout.minimumWidth: 38
-                                iconText: "save"
-                                text: editorToolbar.compact ? "" : Translation.tr("Save file")
-                                enabled: root.currentFile.length > 0
-                                onClicked: root.saveFile()
-                                StyledToolTip { text: Translation.tr("Save file (Ctrl+S)") }
-                            }
 
                             IconAndTextToolbarButton {
                                 implicitHeight: 32
