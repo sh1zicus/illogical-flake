@@ -759,7 +759,7 @@ Item {
 
     // ---------------------------------------------------------------- build
     function performBuild(full) {
-        NixosConfigBuild.performBuild(full);
+        NixosConfigBuild.performBuild(full, true);
         root.showConsole = true;
     }
 

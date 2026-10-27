@@ -80,6 +80,57 @@
           "--lua-desync=fake:blob=0x00000000000000000000000000000000:repeats=2"
         ];
       };
+
+      youtube-tls = {
+        priority = 30;
+        hosts.include = [
+          "youtube.com"
+          "youtu.be"
+          "youtube-nocookie.com"
+          "googlevideo.com"
+          "ytimg.com"
+          "ggpht.com"
+          "youtubei.googleapis.com"
+          "youtube.googleapis.com"
+        ];
+        parameters = [
+          "--filter-tcp=443"
+          "--payload=tls_client_hello"
+          "--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:repeats=1"
+          "--lua-desync=fakedsplit:pos=1,midsld:tcp_ts=-1000"
+        ];
+      };
+
+      youtube-quic = {
+        priority = 40;
+        hosts.include = [
+          "youtube.com"
+          "googlevideo.com"
+          "youtubei.googleapis.com"
+          "youtube.googleapis.com"
+        ];
+        parameters = [
+          "--filter-udp=443"
+          "--payload=quic_initial"
+          "--lua-desync=fake:blob=fake_default_quic:repeats=3"
+        ];
+      };
+
+      openai-tls = {
+        priority = 50;
+        hosts.include = [
+          "chatgpt.com"
+          "openai.com"
+          "oaistatic.com"
+          "oaiusercontent.com"
+        ];
+        parameters = [
+          "--filter-tcp=443"
+          "--payload=tls_client_hello"
+          "--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:repeats=1"
+          "--lua-desync=fakedsplit:pos=1,midsld:tcp_ts=-1000"
+        ];
+      };
     };
   };
 }

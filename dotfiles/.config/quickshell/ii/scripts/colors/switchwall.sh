@@ -82,18 +82,11 @@ check_and_prompt_upscale() {
                 if command -v upscayl &>/dev/null; then
                     nohup upscayl > /dev/null 2>&1 &
                 else
-                    action2=$(notify-send \
+                    notify-send \
                         -a "Wallpaper switcher" \
                         -c "im.error" \
-                        -A "install_upscayl=Install Upscayl (Arch)" \
-                        "Install Upscayl?" \
-                        "yay -S upscayl-bin")
-                    if [[ "$action2" == "install_upscayl" ]]; then
-                        foot yay -S upscayl-bin
-                        if command -v upscayl &>/dev/null; then
-                            nohup upscayl > /dev/null 2>&1 &
-                        fi
-                    fi
+                        "Upscayl not found" \
+                        "Add pkgs.upscayl to your NixOS configuration"
                 fi
             fi
         fi
@@ -206,19 +199,15 @@ switch() {
             fi
             if [ ${#missing_deps[@]} -gt 0 ]; then
                 echo "Missing deps: ${missing_deps[*]}"
-                echo "Arch: sudo pacman -S ${missing_deps[*]}"
-                action=$(notify-send \
+                local missing_nix=""
+                for dep in "${missing_deps[@]}"; do
+                    missing_nix+="pkgs.$dep "
+                done
+                notify-send \
                     -a "Wallpaper switcher" \
                     -c "im.error" \
-                    -A "install_arch=Install (Arch)" \
                     "Can't switch to video wallpaper" \
-                    "Missing dependencies: ${missing_deps[*]}")
-                if [[ "$action" == "install_arch" ]]; then
-                    foot sudo pacman -S "${missing_deps[*]}"
-                    if command -v mpvpaper &>/dev/null && command -v ffmpeg &>/dev/null; then
-                        notify-send 'Wallpaper switcher' 'Alright, try again!' -a "Wallpaper switcher"
-                    fi
-                fi
+                    "Missing dependencies: ${missing_deps[*]}. Add ${missing_nix% } to your NixOS configuration"
                 exit 0
             fi
 

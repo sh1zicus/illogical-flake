@@ -1,5 +1,6 @@
 import qs
 import qs.services
+import qs.modules.common
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -30,7 +31,7 @@ Singleton {
     signal buildStarted()
     signal buildFinished(int exitCode)
 
-    function performBuild(full) {
+    function performBuild(full, reopenEditor = false) {
         root.logText = "";
         root.lastBuildExit = null;
         root.cancelRequested = false;
@@ -43,6 +44,11 @@ Singleton {
             "TERM=dumb",
             "PATH=/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/bin:/bin",
             `QS_CANCEL_FILE=${root.buildCancelPath}`,
+            `QS_REOPEN_EDITOR=${reopenEditor ? "1" : "0"}`,
+            `QS_REOPEN_MARKER=${Directories.nixosConfigReopenMarker}`,
+            `QS_USER=${Quickshell.env("USER") || ""}`,
+            `HYPRLAND_INSTANCE_SIGNATURE=${Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") || ""}`,
+            `XDG_RUNTIME_DIR=${Quickshell.env("XDG_RUNTIME_DIR") || ""}`,
             "bash",
             root.buildSupervisorPath,
             full ? "full" : "quick"
@@ -91,7 +97,7 @@ Singleton {
         watchChanges: true
         onFileChanged: reload()
         onLoaded: {
-            const out = buildLogView.text().replace(/\r/g, "");
+            const out = buildLogView.text().replace(/\r/g, "").replace(/\^@/g, "");
             if (out !== root.logText) root.logText = out;
         }
     }

@@ -19,6 +19,30 @@ import Quickshell.Hyprland
 Scope {
     id: root
 
+    readonly property string reopenMarkerPath: Directories.nixosConfigReopenMarker
+
+    FileView {
+        id: reopenMarkerView
+        path: root.reopenMarkerPath
+        onLoaded: {
+            Quickshell.execDetached(["rm", "-f", root.reopenMarkerPath]);
+            reopenMarkerTimer.start();
+        }
+        onLoadFailed: error => {
+            if (error !== FileViewError.FileNotFound)
+                console.log("Failed to read NixOS config reopen marker:", error);
+        }
+    }
+
+    Timer {
+        id: reopenMarkerTimer
+        interval: 600
+        repeat: false
+        onTriggered: {
+            GlobalStates.nixosConfigOpen = true;
+        }
+    }
+
     FloatingWindow {
         id: configWindow
         visible: GlobalStates.nixosConfigOpen

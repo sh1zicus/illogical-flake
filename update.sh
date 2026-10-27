@@ -28,6 +28,34 @@ else
   say() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 fi
 
+restart_hyprland() {
+  if [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || [ -z "${XDG_RUNTIME_DIR:-}" ]; then
+    return 0
+  fi
+  local hyprctl_bin
+  hyprctl_bin="$(command -v hyprctl 2>/dev/null)" || return 0
+  [ -S "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket.sock" ] || return 0
+  say "Перезапускаю Hyprland..."
+  if [ "$(id -u)" -eq 0 ]; then
+    local run_as
+    run_as="${QS_USER:-}"
+    if [ -z "$run_as" ]; then
+      run_as="$(stat -c %U "$XDG_RUNTIME_DIR" 2>/dev/null)" || run_as=""
+    fi
+    if [ -n "$run_as" ] && command -v runuser >/dev/null 2>&1; then
+      runuser -u "$run_as" -- env \
+        XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
+        HYPRLAND_INSTANCE_SIGNATURE="$HYPRLAND_INSTANCE_SIGNATURE" \
+        "$hyprctl_bin" dispatch exit >/dev/null 2>&1 || true
+      return 0
+    fi
+  fi
+  env \
+    XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
+    HYPRLAND_INSTANCE_SIGNATURE="$HYPRLAND_INSTANCE_SIGNATURE" \
+    "$hyprctl_bin" dispatch exit >/dev/null 2>&1 || true
+}
+
 if ! command -v nix >/dev/null 2>&1; then
   echo "Ошибка: nix не найден."
   exit 1
@@ -58,3 +86,7 @@ say "Готово!"
 say "Если что-то пошло не так:"
 say "  sudo nixos-rebuild switch --rollback"
 say "  git -C /etc/nixos log --oneline && git -C /etc/nixos revert HEAD"
+
+if [ "${QS_BUILD:-0}" != "1" ]; then
+  restart_hyprland
+fi

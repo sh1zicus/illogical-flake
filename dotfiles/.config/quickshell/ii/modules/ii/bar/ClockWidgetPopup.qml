@@ -1,5 +1,6 @@
 import qs.modules.common
 import qs.modules.common.widgets
+import qs.modules.ii.bar.weather
 import qs.services
 import QtQuick
 import QtQuick.Layouts
@@ -9,28 +10,7 @@ StyledPopup {
     property string formattedDate: Qt.locale().toString(DateTime.clock.date, "dddd, MMMM dd, yyyy")
     property string formattedTime: DateTime.time
     property string formattedUptime: DateTime.uptime
-    property string todosSection: getUpcomingTodos()
-
-    function getUpcomingTodos() {
-        const unfinishedTodos = Todo.list.filter(function (item) {
-            return !item.done;
-        });
-        if (unfinishedTodos.length === 0) {
-            return Translation.tr("No pending tasks");
-        }
-
-        // Limit to first 5 todos to keep popup manageable
-        const limitedTodos = unfinishedTodos.slice(0, 5);
-        let todoText = limitedTodos.map(function (item, index) {
-            return `  ${index + 1}. ${item.content}`;
-        }).join('\n');
-
-        if (unfinishedTodos.length > 5) {
-            todoText += `\n  ${Translation.tr("... and %1 more").arg(unfinishedTodos.length - 5)}`;
-        }
-
-        return todoText;
-    }
+    property bool showWeather: false
 
     ColumnLayout {
         id: columnLayout
@@ -48,22 +28,97 @@ StyledPopup {
             value: root.formattedUptime
         }
 
-        // Tasks
-        Column {
-            spacing: 0
-            Layout.fillWidth: true
+        // Weather
+        ColumnLayout {
+            visible: root.showWeather
+            Layout.topMargin: 4
+            spacing: 5
 
-            StyledPopupValueRow {
-                icon: "checklist"
-                label: Translation.tr("To Do:")
-                value: ""
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                spacing: 6
+
+                MaterialSymbol {
+                    fill: 0
+                    font.weight: Font.Medium
+                    text: "location_on"
+                    iconSize: Appearance.font.pixelSize.large
+                    color: Appearance.colors.colOnSurfaceVariant
+                }
+
+                StyledText {
+                    text: Weather.data.city
+                    font {
+                        weight: Font.Medium
+                        pixelSize: Appearance.font.pixelSize.normal
+                    }
+                    color: Appearance.colors.colOnSurfaceVariant
+                }
             }
 
             StyledText {
-                horizontalAlignment: Text.AlignLeft
-                wrapMode: Text.Wrap
+                Layout.alignment: Qt.AlignHCenter
+                font.pixelSize: Appearance.font.pixelSize.smaller
                 color: Appearance.colors.colOnSurfaceVariant
-                text: root.todosSection
+                text: Weather.data.temp + " • " + Translation.tr("Feels like %1").arg(Weather.data.tempFeelsLike)
+            }
+
+            GridLayout {
+                columns: 2
+                rowSpacing: 5
+                columnSpacing: 5
+                uniformCellWidths: true
+
+                WeatherCard {
+                    title: Translation.tr("UV Index")
+                    symbol: "wb_sunny"
+                    value: Weather.data.uv
+                }
+                WeatherCard {
+                    title: Translation.tr("Wind")
+                    symbol: "air"
+                    value: `(${Weather.data.windDir}) ${Weather.data.wind}`
+                }
+                WeatherCard {
+                    title: Translation.tr("Precipitation")
+                    symbol: "rainy_light"
+                    value: Weather.data.precip
+                }
+                WeatherCard {
+                    title: Translation.tr("Humidity")
+                    symbol: "humidity_low"
+                    value: Weather.data.humidity
+                }
+                WeatherCard {
+                    title: Translation.tr("Visibility")
+                    symbol: "visibility"
+                    value: Weather.data.visib
+                }
+                WeatherCard {
+                    title: Translation.tr("Pressure")
+                    symbol: "readiness_score"
+                    value: Weather.data.press
+                }
+                WeatherCard {
+                    title: Translation.tr("Sunrise")
+                    symbol: "wb_twilight"
+                    value: Weather.data.sunrise
+                }
+                WeatherCard {
+                    title: Translation.tr("Sunset")
+                    symbol: "bedtime"
+                    value: Weather.data.sunset
+                }
+            }
+
+            StyledText {
+                Layout.alignment: Qt.AlignHCenter
+                text: Translation.tr("Last refresh: %1").arg(Weather.data.lastRefresh)
+                font {
+                    weight: Font.Medium
+                    pixelSize: Appearance.font.pixelSize.smaller
+                }
+                color: Appearance.colors.colOnSurfaceVariant
             }
         }
     }

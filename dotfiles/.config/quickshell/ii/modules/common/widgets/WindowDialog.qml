@@ -10,9 +10,14 @@ Rectangle {
 
     property bool show: false
     default property alias contentData: contentColumn.data
-    property real backgroundHeight: dialogBackground.implicitHeight
+    property real backgroundHeight: contentColumn.implicitHeight + dialogBackground.radius * 2
     property real backgroundWidth: 350
     property real backgroundAnimationMovementDistance: 60
+    property int backgroundAnimationDuration: Appearance.animation.elementMoveFast.duration
+    property bool animateBackgroundHeight: true
+    property color backgroundColor: Appearance.m3colors.m3surfaceContainerHigh
+    property color borderColor: "transparent"
+    property int borderWidth: 0
     
     signal dismiss()
     Keys.onPressed: (event) => {
@@ -28,11 +33,6 @@ Rectangle {
     }
     visible: dialogBackground.implicitHeight > 0
 
-    onShowChanged: {
-        dialogBackgroundHeightAnimation.easing.bezierCurve = (show ? Appearance.animationCurves.emphasizedDecel : Appearance.animationCurves.emphasizedAccel)
-        dialogBackground.implicitHeight = show ? backgroundHeight : 0
-    }
-
     radius: Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 1
 
     MouseArea { // Clicking outside the dialog should dismiss
@@ -46,25 +46,28 @@ Rectangle {
         id: dialogBackground
         anchors.horizontalCenter: parent.horizontalCenter
         radius: Appearance.rounding.large
-        color: Appearance.m3colors.m3surfaceContainerHigh // Use opaque version of layer3
+        color: root.backgroundColor
+        border.width: root.borderWidth
+        border.color: root.borderColor
         
         property real targetY: root.height / 2 - root.backgroundHeight / 2
         y: root.show ? targetY : (targetY - root.backgroundAnimationMovementDistance)
         implicitWidth: root.backgroundWidth
-        implicitHeight: contentColumn.implicitHeight + dialogBackground.radius * 2
+        implicitHeight: root.show ? root.backgroundHeight : 0
         Behavior on implicitHeight {
+            enabled: root.animateBackgroundHeight
             NumberAnimation {
                 id: dialogBackgroundHeightAnimation
-                duration: Appearance.animation.elementMoveFast.duration
+                duration: root.backgroundAnimationDuration
                 easing.type: Easing.BezierSpline
-                easing.bezierCurve: Appearance.animationCurves.emphasizedDecel
+                easing.bezierCurve: root.show ? Appearance.animationCurves.emphasizedDecel : Appearance.animationCurves.emphasizedAccel
             }
         }
         Behavior on y {
             NumberAnimation {
-                duration: dialogBackgroundHeightAnimation.duration
-                easing.type: dialogBackgroundHeightAnimation.easing.type
-                easing.bezierCurve: dialogBackgroundHeightAnimation.easing.bezierCurve
+                duration: root.backgroundAnimationDuration
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: root.show ? Appearance.animationCurves.emphasizedDecel : Appearance.animationCurves.emphasizedAccel
             }
         }
 

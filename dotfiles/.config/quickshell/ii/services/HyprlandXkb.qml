@@ -17,9 +17,24 @@ Singleton {
     property string currentLayoutCode: ""
     property bool needsLayoutRefresh: false
 
+    function switchToEnglishLayout() {
+        const index = Math.max(0, root.layoutCodes.findIndex(code => {
+            const base = code.toLowerCase().split(/[-_]/)[0];
+            return base === "us" || base === "gb" || base === "en";
+        }));
+        switchLayoutProc.command = ["hyprctl", "switchxkblayout", "all", String(index)];
+        switchLayoutProc.running = true;
+    }
+
     // The active layout name is reported directly by Hyprland. There's no need to
     // expand layout codes from base.lst (which isn't present at a fixed path on NixOS).
     onCurrentLayoutNameChanged: root.currentLayoutCode = root.currentLayoutName
+
+    Process {
+        id: switchLayoutProc
+        command: ["hyprctl", "switchxkblayout", "all", "0"]
+        running: false
+    }
 
     // Find out available layouts and current active layout. Should only be necessary on init
     Process {
