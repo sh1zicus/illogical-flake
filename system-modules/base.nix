@@ -29,14 +29,20 @@
     path = pkgs.path;
   };
 
-  # Автоматическая уборка /nix: GC раз в неделю (старше 7 дней + не более
-  # 10 последних генераций), оптимизация стора (hardlinks дедупликация) —
-  # не даём диску забиваться.
+  # Автоматическая уборка /nix: GC раз в неделю (старше 7 дней), оптимизация
+  # стора (hardlinks дедупликация) — не даём диску забиваться.
   nix.gc = {
     automatic = true;
     dates = "weekly";
-    options = "--delete-older-than 7d --delete-generations 10";
+    options = "--delete-older-than 7d";
   };
+
+  # nix-collect-garbage не умеет --delete-generations. Чтобы не копить
+  # системные генерации, перед GC оставляем только 10 последних.
+  systemd.services.nix-gc.preStart = ''
+    ${config.nix.package.out}/bin/nix-env --delete-generations +10 \
+      -p /nix/var/nix/profiles/system
+  '';
   nix.optimise.automatic = true;
 
   # Не генерируем индекс-кэш man-страниц (mandb.service) — man не используется.
