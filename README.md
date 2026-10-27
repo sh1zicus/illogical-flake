@@ -1,97 +1,157 @@
-# Конфиг NixOS (Illogical Impulse)
+# NixOS + Hyprland (Illogical Impulse)
 
-Здесь живёт весь конфиг этой машины: **система NixOS** + **home-manager** (твои
-настройки и приложения). Основа — энд-4 «Illogical Impulse» (Hyprland-окружение)
-с подключённым QuickShell, тёмной теме Qt (KDE platform theme + Darkly) и
-долфином.
+Конфигурация машины `nixos`: NixOS, home-manager, Hyprland и окружение
+Illogical Impulse на QuickShell. В репозитории лежат и системные настройки, и
+домашние конфиги, и dotfiles.
 
-Репозиторий — единый и самодостаточный: клонируешь на любую машину, и всё
-(конфиги, домашние настройки, файлы dotfiles) приезжает вместе с ним.
+> Это конфиг конкретной машины, а не универсальный установщик. При переезде на
+> другое железо обязательно обнови `hardware-configuration.nix` и проверь
+> диски, имя хоста и пользователя.
 
----
+## Быстрый старт
 
-## Структура (что где лежит)
-
-```
-/etc/nixos/
-├── flake.nix                # точка входа: inputs + сборка системы и home-manager
-├── configuration.nix        # системные настройки (пользователи, драйверы, мосты...)
-├── hardware-configuration.nix  # железо (генерируется автоматически)
-├── system-modules/               # // СИСТЕМНЫЕ МОДУЛИ (по полочкам) //
-│   ├── base.nix                  # stateVersion, настройки nix (gc, registry...)
-│   ├── overlays.nix              # правки пакетов из flake-входов (portproton FHS, ...)
-│   ├── boot.nix                  # загрузчик GRUB, ядро (xanmod, ntsync)
-│   ├── locale.nix                # сеть, локализация, раскладка
-│   ├── users.nix                 # пользователь + права sudo
-│   ├── packages.nix              # пакеты системного профиля
-│   ├── services.nix              # службы, производительность, графика
-│   ├── shell.nix                 # fish + автологин / запуск Hyprland
-│   └── network/                  # // СЕТЕВЫЕ МОДУЛИ //
-│       ├── warp.nix              # Cloudflare WARP (обход блокировок)
-│       ├── zapret.nix            # Discord DPI bypass (zapret2)
-│       └── stalzone-blocker.nix  # блокировка серверов Stalzone (dynamic nft)
-├── home/
-│   └── daen2772/            # // ЛИЧНЫЕ НАСТРОЙКИ ПОЛЬЗОВАТЕЛЯ //
-│       ├── default.nix      # точка входа: username, импорты ниже
-│       ├── illogical.nix    # включение end-4 окружения (fish, starship)
-│       ├── apps.nix         # твои приложения
-│       └── shell.nix        # настройки оболочки (fish, starship)
-├── home-module.nix          # модуль Illogical Impulse (end-4/QuickShell)
-├── home-modules/            # его части: fonts, packages, qt, env, dotfiles...
-├── pkgs/                    # локальные пакеты (иконки, шрифты)
-├── dotfiles/                # файлы конфигов end-4 (.config, .local) — копируются в ~
-│   └── .config/quickshell/ii/modules/ii/nixosConfig/
-│                               # менеджер конфига NixOS (дерево файлов +
-│                               # редактор с подсветкой + пересборка через polkit)
-├── update.sh                # обновить и применить конфиг
-├── install.sh               # применить/установить (на свежей машине)
-└── README.md                # этот файл
-```
-
-## Как пользоваться
-
-### 1. Изменить настройки
-
-Выбери файл под нужное, отредактируй и примени (см. ниже):
-
-- **Поставить приложение** → `home/daen2772/apps.nix` (в `home.packages`).
-- **Изменить настройки приложения** → добавь файл вида `home/daen2772/<app>.nix`
-  с опциями home-manager (например `programs.foo.enable = true;`) и пропиши его
-  в `imports` в `home/daen2772/default.nix`.
-- **Система** (драйверы, сервисы) → `configuration.nix`.
-- **Внешний вид/тема Qt** → `home-modules/qt.nix` и `home-modules/environment.nix`.
-
-### 2. Применить изменения / обновить
+Требуется NixOS с включёнными flakes и доступом в интернет.
 
 ```bash
 cd /etc/nixos
-./update.sh          # полностью: обновить пакеты и применить
-./update.sh --quick  # просто применить текущий конфиг (без обновления пакетов)
+
+./update.sh --quick   # применить текущий конфиг
+./update.sh           # обновить flake-входы и применить
 ```
 
-Скрипт спросит пароль `sudo`. После этого система пересобирается и конфиг
-применяется.
+`update.sh` сам запросит пароль `sudo`. Для обычных правок в конфиге используй
+`--quick`: он не обновляет nixpkgs и другие входы.
 
-### 3. Откатиться, если сломалось
+Проверить конфиг без сборки:
 
 ```bash
-sudo nixos-rebuild switch --rollback   # вернуть предыдущую рабочую версию
-cd /etc/nixos && git log --oneline     # посмотреть последние изменения
-git revert HEAD                        # отменить последний коммит
+nix flake check --no-build
 ```
 
-### 4. Новая машина (бэкап/переезд)
+## Где что менять
+
+| Что нужно | Где смотреть |
+|---|---|
+| Пакеты пользователя | `home/daen2772/apps.nix` |
+| Системные пакеты | `system-modules/packages.nix` |
+| Пользователь и его настройки | `home/daen2772/default.nix` |
+| Системные службы и железо | `configuration.nix`, `system-modules/` |
+| Тема, шрифты, Qt | `home-modules/environment.nix`, `home-modules/qt.nix`, `home-modules/fonts.nix` |
+| Dotfiles Hyprland/QuickShell | `dotfiles/` |
+| Сеть, WARP, zapret, Stalzone | `system-modules/network/` |
+
+После правок снова запусти `./update.sh --quick`.
+
+## Структура
+
+```text
+.
+├── flake.nix                 # входы flake и сборка NixOS + home-manager
+├── configuration.nix         # точка входа системного конфига
+├── hardware-configuration.nix
+├── system-modules/           # системные модули
+│   ├── base.nix              # Nix, GC, базовые настройки
+│   ├── boot.nix              # загрузчик и ядро
+│   ├── locale.nix            # сеть, локаль, раскладка
+│   ├── users.nix             # пользователь и sudo
+│   ├── packages.nix          # системные пакеты
+│   ├── services.nix          # службы и графика
+│   ├── shell.nix             # fish, автологин, Hyprland
+│   └── network/              # WARP, zapret2, stalzone-blocker
+├── home/daen2772/            # домашние настройки пользователя
+├── home-module.nix           # модуль Illogical Impulse
+├── home-modules/             # его части: fonts, packages, qt, dotfiles
+├── pkgs/                     # локальные пакеты
+├── dotfiles/                 # конфиги Hyprland/QuickShell
+├── update.sh                 # обновить и применить конфиг
+├── install.sh                # установить на свежей машине
+└── README.md
+```
+
+## NixOS Config в QuickShell
+
+В QuickShell есть окно управления конфигом: дерево файлов, редактор с
+подсветкой, поиск пакетов nixpkgs и кнопка пересборки.
+
+- пересборка идёт через `pkexec` и требует подтверждения паролем;
+- кнопка отмены останавливает всю сборку, а не только внешний процесс;
+- лог сборки: `/var/log/nixos-build.log`;
+- перед закрытием окна с несохранёнными файлами редактор попросит сохранить их.
+
+## Новая машина
+
+1. Скопируй репозиторий в `/etc/nixos`:
+
+   ```bash
+   git clone https://github.com/sh1zicus/illogical-flake.git ~/nixos
+   sudo cp -r ~/nixos/. /etc/nixos/
+   ```
+
+   Если `/etc/nixos` уже существует, сначала сохрани нужные файлы.
+2. Сгенерируй конфиг железа:
+
+   ```bash
+   sudo nixos-generate-config --dir /etc/nixos
+   ```
+
+   Если старый `hardware-configuration.nix` уже есть, сначала сохрани или
+   удали его, иначе `install.sh` не будет генерировать новый.
+3. Проверь и поправь под себя:
+   - имя хоста в `flake.nix`, `update.sh` и `install.sh`;
+   - пользователя в `flake.nix`, `home/daen2772/` и `system-modules/users.nix`;
+   - диск `/mnt/games` в `configuration.nix`;
+   - шаблоны сетевых интерфейсов в `system-modules/network/zapret.nix`.
+4. Примени:
+
+   ```bash
+   cd /etc/nixos
+   ./install.sh
+   ```
+
+## WARP
+
+После первой установки WARP нужно зарегистрировать и подключить вручную:
 
 ```bash
-git clone <адрес-этого-репозитория> ~/nixos
-sudo cp -r ~/nixos /etc/nixos
-sudo nixos-generate-config --dir /etc/nixos   # сгенерировать файл железа
-cd /etc/nixos && ./install.sh
+sudo warp-cli --accept-tos registration new
+sudo warp-cli connect
+sudo warp-cli status
 ```
 
-## Полезное
+## Stalzone
 
-- После смены конфига достаточно `./update.sh` — Hyprland после перелогина
-  подхватит всё новое (пакеты, переменные окружения).
-- Кнопка отката в git: любой коммит можно безопасно `git revert` — система
-  переживёт.
+Модуль блокирует игровые серверы Stalzone/Stalcraft. Сейчас разрешены пулы
+`EKB` и `NSK1`, остальные блокируются. Настройки находятся в
+`configuration.nix`:
+
+```nix
+services.stalzone-blocker = {
+  enable = true;
+  login = "nixos";
+  excludePools = [ "EKB" "NSK1" ];
+};
+```
+
+Список серверов обновляется службой `stalzone-blocker-fetch.service`.
+
+## Если что-то сломалось
+
+Вернуться к предыдущей системе:
+
+```bash
+sudo nixos-rebuild switch --rollback
+```
+
+Посмотреть последние изменения:
+
+```bash
+git log --oneline
+git revert HEAD
+```
+
+Логи служб:
+
+```bash
+journalctl -u stalzone-blocker-fetch.service -n 50 --no-pager
+journalctl -u nfqws2@default.service -n 50 --no-pager
+```
