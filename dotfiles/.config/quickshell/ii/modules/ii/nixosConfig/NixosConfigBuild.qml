@@ -13,14 +13,18 @@ Singleton {
     id: root
 
     property bool building: false
+    property bool cancelRequested: false
     property var lastBuildExit: null
     property string logText: ""
     property string statusHint: ""
-    // Лог в приватном runtime-каталоге пользователя, а не в общем /tmp:
-    // другой пользователь не сможет подменить его симлинком.
-    readonly property string buildLogPath: {
+
+    // Лог пишет root, поэтому он лежит в /var/log: пользователь не может
+    // заранее создать там symlink и заставить root перезаписать чужой файл.
+    readonly property string buildLogPath: "/var/log/nixos-build.log"
+    readonly property string buildSupervisorPath: "/etc/nixos/dotfiles/.config/quickshell/ii/scripts/nixos-build-supervisor.sh"
+    readonly property string buildCancelPath: {
         const dir = Quickshell.env("XDG_RUNTIME_DIR");
-        return (dir && dir.length > 0 ? dir : "/tmp") + "/nixos-build.log";
+        return (dir && dir.length > 0 ? dir : "/tmp") + "/nixos-build.cancel";
     }
 
     signal buildStarted()
@@ -29,17 +33,19 @@ Singleton {
     function performBuild(full) {
         root.logText = "";
         root.lastBuildExit = null;
+        root.cancelRequested = false;
         root.statusHint = Translation.tr("rebuild started…");
-        const script = full ? "./update.sh" : "./update.sh --quick";
+        Quickshell.execDetached(["rm", "-f", root.buildCancelPath]);
         buildProc.command = [
             "pkexec",
             "env",
             "QS_BUILD=1",
             "TERM=dumb",
             "PATH=/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/bin:/bin",
+            `QS_CANCEL_FILE=${root.buildCancelPath}`,
             "bash",
-            "-c",
-            `umask 022; cd /etc/nixos && exec script -qefc '${script}' /dev/null > '${root.buildLogPath}' 2>&1`
+            root.buildSupervisorPath,
+            full ? "full" : "quick"
         ];
         root.building = true;
         buildProc.running = true;
@@ -48,8 +54,11 @@ Singleton {
 
     function cancelBuild() {
         if (buildProc.running) {
-            buildProc.signal(15);
-            root.statusHint = Translation.tr("stopping rebuild (SIGTERM)…");
+            root.cancelRequested = true;
+            // Root-обёртка следит за файлом и останавливает всю группу
+            // процессов сборки, включая nixos-rebuild и nix.
+            Quickshell.execDetached(["touch", root.buildCancelPath]);
+            root.statusHint = Translation.tr("stopping rebuild…");
         }
     }
 
@@ -60,11 +69,16 @@ Singleton {
     Process {
         id: buildProc
         onExited: (exitCode, exitStatus) => {
+            const wasCancelled = root.cancelRequested && exitCode !== 0;
             root.building = false;
+            root.cancelRequested = false;
             root.lastBuildExit = exitCode;
-            root.statusHint = exitCode === 0
-                ? Translation.tr("rebuild finished successfully")
-                : Translation.tr("rebuild failed with error (%1)").arg(exitCode);
+            root.statusHint = wasCancelled
+                ? Translation.tr("rebuild cancelled")
+                : (exitCode === 0
+                    ? Translation.tr("rebuild finished successfully")
+                    : Translation.tr("rebuild failed with error (%1)").arg(exitCode));
+            Quickshell.execDetached(["rm", "-f", root.buildCancelPath]);
             buildLogView.reload();
             finalLogReloadTimer.restart();
             root.buildFinished(exitCode);
