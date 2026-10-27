@@ -500,5 +500,8 @@
   "Fr": "Fr/*keep*/",
   "Tu": "Tu/*keep*/",
   "Th": "Th/*keep*/",
-  "We": "We/*keep*/"
+  "We": "We/*keep*/",
+  "d": "י׳",
+  "h": "ש׳",
+  "m": "ד׳"
 }

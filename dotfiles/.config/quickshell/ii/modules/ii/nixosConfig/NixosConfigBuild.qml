@@ -59,6 +59,8 @@ Singleton {
             root.statusHint = exitCode === 0
                 ? Translation.tr("rebuild finished successfully")
                 : Translation.tr("rebuild failed with error (%1)").arg(exitCode);
+            buildLogView.reload();
+            finalLogReloadTimer.restart();
             root.buildFinished(exitCode);
         }
     }
@@ -67,6 +69,7 @@ Singleton {
         id: buildLogView
         path: "/tmp/nixos-build.log"
         watchChanges: true
+        onFileChanged: reload()
         onLoaded: {
             const out = buildLogView.text().replace(/\r/g, "");
             if (out !== root.logText) root.logText = out;
@@ -81,5 +84,12 @@ Singleton {
         onTriggered: {
             if (buildLogView.path.length > 0) buildLogView.reload();
         }
+    }
+
+    Timer {
+        id: finalLogReloadTimer
+        interval: 250
+        repeat: false
+        onTriggered: buildLogView.reload()
     }
 }

@@ -1,6 +1,7 @@
 pragma Singleton
 pragma ComponentBehavior: Bound
 import qs
+import qs.services
 import qs.modules.common
 import QtQuick
 import Quickshell
@@ -23,7 +24,21 @@ Singleton {
     property string date: Qt.locale().toString(clock.date, Config.options?.time.dateWithYearFormat ?? "dd/MM/yyyy")
     property string longDate: Qt.locale().toString(clock.date, Config.options?.time.dateFormat ?? "dddd, dd/MM")
     property string collapsedCalendarFormat: Qt.locale().toString(clock.date, "dddd, MMMM dd")
-    property string uptime: "0h, 0m"
+    property real uptimeSeconds: 0
+    property string uptime: {
+        const days = Math.floor(uptimeSeconds / 86400);
+        const hours = Math.floor((uptimeSeconds % 86400) / 3600);
+        const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+
+        let formatted = "";
+        if (days > 0)
+            formatted += `${days}${Translation.tr("d")}`;
+        if (hours > 0)
+            formatted += `${formatted ? ", " : ""}${hours}${Translation.tr("h")}`;
+        if (minutes > 0 || !formatted)
+            formatted += `${formatted ? ", " : ""}${minutes}${Translation.tr("m")}`;
+        return formatted;
+    }
 
     Timer {
         interval: 10
@@ -32,22 +47,7 @@ Singleton {
         onTriggered: {
             fileUptime.reload();
             const textUptime = fileUptime.text();
-            const uptimeSeconds = Number(textUptime.split(" ")[0] ?? 0);
-
-            // Convert seconds to days, hours, and minutes
-            const days = Math.floor(uptimeSeconds / 86400);
-            const hours = Math.floor((uptimeSeconds % 86400) / 3600);
-            const minutes = Math.floor((uptimeSeconds % 3600) / 60);
-
-            // Build the formatted uptime string
-            let formatted = "";
-            if (days > 0)
-                formatted += `${days}d`;
-            if (hours > 0)
-                formatted += `${formatted ? ", " : ""}${hours}h`;
-            if (minutes > 0 || !formatted)
-                formatted += `${formatted ? ", " : ""}${minutes}m`;
-            uptime = formatted;
+            uptimeSeconds = Number(textUptime.split(" ")[0] ?? 0);
             interval = Config.options?.resources?.updateInterval ?? 3000;
         }
     }

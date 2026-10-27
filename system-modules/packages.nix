@@ -41,6 +41,6 @@ in
     dconf
     gparted
     unrar
-    cpupower
+    linuxPackages.cpupower
   ];
 }

@@ -427,5 +427,8 @@
   "Lap": "ラップ",
   "Horizontal": "水平",
   "Region width": "領域の幅",
-  "Vertical": "垂直"
+  "Vertical": "垂直",
+  "d": "日",
+  "h": "時",
+  "m": "分"
 }

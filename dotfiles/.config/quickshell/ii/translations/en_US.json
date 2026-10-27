@@ -746,5 +746,8 @@
   "Reminder time": "Reminder time",
   "Empty — no reminder": "Empty — no reminder",
   "Timer (minutes)": "Timer (minutes)",
-  "Empty — no timer": "Empty — no timer"
+  "Empty — no timer": "Empty — no timer",
+  "d": "d",
+  "h": "h",
+  "m": "m"
 }
