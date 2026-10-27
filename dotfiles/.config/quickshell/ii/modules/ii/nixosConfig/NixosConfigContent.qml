@@ -19,7 +19,7 @@ Item {
             root.saveFile();
             event.accepted = true;
         } else if (event.key === Qt.Key_Escape) {
-            GlobalStates.nixosConfigOpen = false;
+            root.requestClose();
             event.accepted = true;
         }
     }
@@ -44,6 +44,9 @@ Item {
     readonly property string logText: NixosConfigBuild.logText
     property string rawText: "" // plain file content (edit) | highlighted HTML is derived from it
     property bool syncingText: false // true while applyEditorText() pushes programmatic text
+    property string savePath: "" // path captured when the save was started
+    property string saveText: "" // text captured when the save was started
+    property bool saving: false
     // Высота консоли сборки. Тянется за границу над панелью, значение живёт
     // в states.json, поэтому переживает и закрытие окна, и перезапуск шелла.
     readonly property real consoleDefaultHeight: 180
@@ -261,6 +264,12 @@ Item {
 
     // ---------------------------------------------------------------- file io
     function selectFile(path) {
+        // A pending insertion belongs only to the file it was created for.
+        // Switching elsewhere must cancel it instead of inserting later.
+        if (root.pendingInsert !== null && root.pendingInsert.path !== path) {
+            root.pendingInsert = null;
+        }
+        root.pendingLine = 0;
         root.currentFile = path;
         root.fileDirty = false;
         root.loading = true;
@@ -269,7 +278,20 @@ Item {
     }
 
     function showFile() {
+        servicePanel.stopLive();
         root.viewMode = 0;
+    }
+
+    function hasUnsavedChanges() {
+        return Object.keys(root.dirtyFiles).length > 0;
+    }
+
+    function requestClose() {
+        if (root.hasUnsavedChanges()) {
+            root.statusHint = Translation.tr("save unsaved changes before closing");
+            return;
+        }
+        GlobalStates.nixosConfigOpen = false;
     }
 
     // Открыть systemd-сервис в панели вместо редактора.
@@ -305,7 +327,10 @@ Item {
         if (!editor || !text) return;
         const pos = editor.cursorPosition;
         root.suppressCompletion = true;
+        root.syncingText = true;
         editor.text = root.rawText.substring(0, pos) + text + root.rawText.substring(pos);
+        root.rawText = editor.text;
+        root.syncingText = false;
         editor.cursorPosition = pos + text.length;
         editor.forceActiveFocus();
         root.suppressCompletion = false;
@@ -335,13 +360,16 @@ Item {
 
     function insertPendingLine() {
         const ins = root.pendingInsert;
-        if (!ins || !editor || root.loading) return;
+        if (!ins || !editor || root.loading || ins.path !== root.currentFile) return;
         root.pendingInsert = null;
         const lines = root.rawText.split("\n");
         const idx = Math.max(0, Math.min(lines.length, ins.line - 1));
         lines.splice(idx, 0, ins.text);
         root.suppressCompletion = true;
+        root.syncingText = true;
         editor.text = lines.join("\n");
+        root.rawText = editor.text;
+        root.syncingText = false;
         root.suppressCompletion = false;
         root.completionItems = [];
         root.completionManual = false;
@@ -356,8 +384,8 @@ Item {
             Qt.callLater(() => root.scrollToLine(line));
             return;
         }
-        root.pendingLine = line;
         root.selectFile(path);
+        root.pendingLine = line;
         root.statusHint = `${path}:${line}`;
     }
 
@@ -673,13 +701,14 @@ Item {
         return path !== undefined && path.length > 0 && root.dirtyFiles[path] !== undefined;
     }
 
-    function markDirty() {
-        if (root.currentFile.length === 0) return;
+    function markDirty(path, text) {
+        const p = path ?? root.currentFile;
+        if (p.length === 0) return;
         const next = {};
         for (const k in root.dirtyFiles) next[k] = root.dirtyFiles[k];
-        next[root.currentFile] = root.rawText;
+        next[p] = text ?? root.rawText;
         root.dirtyFiles = next;
-        root.fileDirty = true;
+        if (p === root.currentFile) root.fileDirty = true;
     }
 
     function clearDirty(path) {
@@ -696,9 +725,24 @@ Item {
 
     function saveFile() {
         if (root.currentFile.length === 0) return;
-        configFileView.setText(root.rawText);
-        root.clearDirty();
-        root.statusHint = Translation.tr("saving %1…").arg(root.currentFile);
+        // Never write the previous buffer while a newly selected file is
+        // still loading: currentFile already points at the new file, while
+        // rawText still belongs to the old one.
+        if (root.loading) {
+            root.statusHint = Translation.tr("wait for the file to load");
+            return;
+        }
+        if (root.saving) {
+            root.statusHint = Translation.tr("save already in progress");
+            return;
+        }
+        const path = root.currentFile;
+        const text = root.rawText;
+        root.savePath = path;
+        root.saveText = text;
+        root.saving = true;
+        configFileView.setText(text);
+        root.statusHint = Translation.tr("saving %1…").arg(path);
     }
 
     // Push the current file contents into the editor. The editor always keeps
@@ -1945,6 +1989,7 @@ Item {
                         root.insertAtCursor(`pkgs.${attr}`);
                     }
                     onInsertPackageLine: (attr, target) => root.addPackageToList(attr, target)
+                    onCloseRequested: root.requestClose()
                     onServiceClicked: (unit, scope, path, line) => {
                         console.log("[nixosConfig] serviceClicked signal", unit, scope, path, line);
                         root.openService(unit, scope, path, line);
@@ -2072,7 +2117,11 @@ Item {
                 Qt.callLater(() => root.scrollToLine(ln));
             }
             if (root.pendingInsert !== null) {
-                Qt.callLater(() => root.insertPendingLine());
+                if (root.pendingInsert.path === root.currentFile) {
+                    Qt.callLater(() => root.insertPendingLine());
+                } else {
+                    root.pendingInsert = null;
+                }
             }
         }
         onLoadFailed: (error) => {
@@ -2085,14 +2134,40 @@ Item {
             }
         }
         onSaved: {
-            root.statusHint = Translation.tr("saved: %1").arg(root.currentFile);
-            root.clearDirty();
-            root.refreshGit();
+            const savedPath = root.savePath;
+            const savedText = root.saveText;
+            root.saving = false;
+            root.savePath = "";
+            root.saveText = "";
+            if (savedPath.length > 0) {
+                // Do not discard edits made while the write was in flight.
+                const dirty = root.dirtyFiles[savedPath];
+                if (dirty === undefined || dirty === savedText) {
+                    root.clearDirty(savedPath);
+                } else if (savedPath === root.currentFile) {
+                    root.fileDirty = true;
+                }
+                root.statusHint = Translation.tr("saved: %1").arg(savedPath);
+                root.refreshGit();
+                if (rightSidebar) rightSidebar.refreshAfterSave();
+            }
         }
         onSaveFailed: (error) => {
+            const savedPath = root.savePath || root.currentFile;
+            const failedText = root.saveText;
+            root.saving = false;
+            root.savePath = "";
+            root.saveText = "";
+            if (savedPath.length > 0) {
+                const dirty = root.dirtyFiles[savedPath];
+                if (dirty === undefined || dirty === failedText) {
+                    root.markDirty(savedPath, failedText);
+                } else if (savedPath === root.currentFile) {
+                    root.fileDirty = true;
+                }
+            }
             root.statusHint = Translation.tr("failed to save: %1")
                 .arg(FileViewError.toString(error));
-            root.markDirty();
         }
     }
 

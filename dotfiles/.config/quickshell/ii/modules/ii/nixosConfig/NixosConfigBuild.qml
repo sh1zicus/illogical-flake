@@ -16,6 +16,12 @@ Singleton {
     property var lastBuildExit: null
     property string logText: ""
     property string statusHint: ""
+    // Лог в приватном runtime-каталоге пользователя, а не в общем /tmp:
+    // другой пользователь не сможет подменить его симлинком.
+    readonly property string buildLogPath: {
+        const dir = Quickshell.env("XDG_RUNTIME_DIR");
+        return (dir && dir.length > 0 ? dir : "/tmp") + "/nixos-build.log";
+    }
 
     signal buildStarted()
     signal buildFinished(int exitCode)
@@ -33,7 +39,7 @@ Singleton {
             "PATH=/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/bin:/bin",
             "bash",
             "-c",
-            `cd /etc/nixos && exec script -qefc '${script}' /dev/null > /tmp/nixos-build.log 2>&1`
+            `umask 022; cd /etc/nixos && exec script -qefc '${script}' /dev/null > '${root.buildLogPath}' 2>&1`
         ];
         root.building = true;
         buildProc.running = true;
@@ -67,7 +73,7 @@ Singleton {
 
     FileView {
         id: buildLogView
-        path: "/tmp/nixos-build.log"
+        path: root.buildLogPath
         watchChanges: true
         onFileChanged: reload()
         onLoaded: {

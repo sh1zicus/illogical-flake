@@ -266,7 +266,9 @@ Item {
             QuickToggleButton {
                 toggled: GlobalStates.nixosConfigOpen
                 buttonIcon: "code"
-                onClicked: GlobalStates.nixosConfigOpen = !GlobalStates.nixosConfigOpen
+                // Идём через IPC, чтобы NixosConfig успел проверить
+                // несохранённые файлы перед закрытием.
+                onClicked: Quickshell.execDetached(["qs", "-p", Quickshell.shellPath(""), "ipc", "call", "nixosConfig", "toggle"])
                 StyledToolTip {
                     text: Translation.tr("NixOS Config")
                 }

@@ -16,6 +16,7 @@ CACHE = os.path.join(
     "quickshell",
     "nixpkgs-index.json",
 )
+INDEX_VERSION = 2
 
 
 def run(cmd, timeout=None):
@@ -38,9 +39,13 @@ def load_cached():
     сверка с nixpkgs#path сама по себе стоит несколько секунд."""
     try:
         with open(CACHE, encoding="utf-8") as f:
-            pkgs = json.load(f).get("packages", [])
+            data = json.load(f)
     except (OSError, ValueError):
         return None
+    # Старые индексы хранили только basename и ломали вложенные attr-пути.
+    if data.get("version") != INDEX_VERSION:
+        return None
+    pkgs = data.get("packages", [])
     # В nixpkgs много алиасов с одинаковым именем (NeovimExt и т.п.) —
     # в списке они бесполезны, оставляем по одному.
     seen = set()
@@ -61,11 +66,16 @@ def build_index(path):
     raw = run(["nix", "search", "--json", "nixpkgs", "."], timeout=1800)
     data = json.loads(raw)
     pkgs = []
-    for attr, meta in data.items():
-        name = attr.split(".")[-1]
-        pkgs.append([name, meta.get("version", ""), " ".join((meta.get("description") or "").split())])
+    for key, meta in data.items():
+        # nix search returns legacyPackages.<system>.<attr.path>; keep the
+        # full attr path (CuboCore.coreaction), not just the basename.
+        parts = key.split(".")
+        attr = ".".join(parts[2:]) if len(parts) > 2 and parts[0] in ("legacyPackages", "packages") else key
+        if not attr:
+            continue
+        pkgs.append([attr, meta.get("version", ""), " ".join((meta.get("description") or "").split())])
     pkgs.sort(key=lambda r: r[0].lower())
-    out = {"nixpkgsPath": path, "packages": pkgs}
+    out = {"version": INDEX_VERSION, "nixpkgsPath": path, "packages": pkgs}
     tmp = CACHE + ".tmp"
     os.makedirs(os.path.dirname(CACHE), exist_ok=True)
     with open(tmp, "w", encoding="utf-8") as f:

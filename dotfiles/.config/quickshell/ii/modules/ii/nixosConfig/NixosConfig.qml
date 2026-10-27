@@ -64,8 +64,17 @@ Scope {
         }
     }
 
+    function closeNixosConfig() {
+        if (contentLoader.item && contentLoader.item.requestClose) {
+            contentLoader.item.requestClose();
+        } else {
+            GlobalStates.nixosConfigOpen = false;
+        }
+    }
+
     function toggleNixosConfig() {
-        GlobalStates.nixosConfigOpen = !GlobalStates.nixosConfigOpen
+        if (GlobalStates.nixosConfigOpen) root.closeNixosConfig();
+        else GlobalStates.nixosConfigOpen = true;
     }
 
     IpcHandler {

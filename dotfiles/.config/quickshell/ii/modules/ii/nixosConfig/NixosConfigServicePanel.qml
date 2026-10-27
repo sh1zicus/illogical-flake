@@ -42,9 +42,14 @@ Item {
     property string actionStatus: ""
     property bool actionRunning: false
     property int logLines: 200
+    readonly property int maxLogChars: 200000
 
     implicitHeight: 400
     implicitWidth: 600
+
+    onVisibleChanged: {
+        if (!root.visible) root.stopLive();
+    }
 
     onUnitChanged: {
         root.stopLive();
@@ -115,6 +120,15 @@ Item {
             "-o", "short-iso");
         if (root.live) args.push("-f");
         return args;
+    }
+
+    function setLog(text) {
+        // journalctl -f может работать часами; держим только хвост, иначе
+        // TextArea/подсветка съедают память и CPU.
+        const value = text || "";
+        root.logText = value.length > root.maxLogChars
+            ? value.slice(-root.maxLogChars)
+            : value;
     }
 
     function refreshLogs() {
@@ -627,10 +641,10 @@ Item {
             id: logCollector
             waitForEnd: !root.live
             onTextChanged: {
-                if (root.live && logCollector.text.length > 0) root.logText = logCollector.text;
+                if (root.live && logCollector.text.length > 0) root.setLog(logCollector.text);
             }
             onStreamFinished: {
-                if (!root.live) root.logText = logCollector.text;
+                if (!root.live) root.setLog(logCollector.text);
             }
         }
     }

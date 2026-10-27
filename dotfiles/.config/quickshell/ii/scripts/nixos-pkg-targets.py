@@ -65,14 +65,16 @@ def skip_trivia(text, i):
 
 
 def find_list(text, key_re):
-    """Возвращает (open_idx, close_idx) первого списка после key_re."""
+    """Возвращает (open_idx, close_idx, with_pkgs) первого списка после key_re."""
     n = len(text)
     for m in key_re.finditer(text):
         i = skip_trivia(text, m.end())
         if i < 0:
             continue
+        with_pkgs = False
         # `with pkgs; [ ... ]` — преамбула пропускается
         while text.startswith("with", i) and (i + 4 >= n or not (text[i + 4].isalnum() or text[i + 4] == "_")):
+            with_pkgs = True
             j = skip_trivia(text, i + 4)
             if j < 0:
                 break
@@ -115,9 +117,9 @@ def find_list(text, key_re):
             elif c == "]":
                 depth -= 1
                 if depth == 0:
-                    return open_idx, j
+                    return open_idx, j, with_pkgs
             j += 1
-    return None, None
+    return None, None, False
 
 
 def guess_indent(text, open_idx, close_idx):
@@ -140,14 +142,13 @@ def main():
             text = open(path, encoding="utf-8").read()
         except OSError:
             continue
-        open_idx, close_idx = find_list(text, key_re)
+        open_idx, close_idx, with_pkgs = find_list(text, key_re)
         if open_idx is None:
             continue
         open_line = text.count("\n", 0, open_idx) + 1
         close_line = text.count("\n", 0, close_idx) + 1
         indent = guess_indent(text, open_idx, close_idx)
-        with_pkgs = 1 if re.search(r"=\s*with\s+[^;]+;", text[:open_idx]) else 0
-        sys.stdout.write(f"{source}\t{rel}\t{open_line}\t{close_line}\t{indent}\t{with_pkgs}\n")
+        sys.stdout.write(f"{source}\t{rel}\t{open_line}\t{close_line}\t{indent}\t{int(with_pkgs)}\n")
 
 
 if __name__ == "__main__":

@@ -52,6 +52,9 @@ Rectangle {
     // если сервис оттуда (для кнопки "Open in config").
     signal serviceClicked(string unit, string scope, string path, int line)
 
+    // Окно закрывается через Content, чтобы не потерять несохранённые файлы.
+    signal closeRequested()
+
     Component.onCompleted: {
         root.refreshPackages();
         root.refreshServices();
@@ -241,6 +244,15 @@ Rectangle {
     function refreshServices() {
         servicesProc.running = true;
         configServicesProc.running = true;
+    }
+
+    // После сохранения номера строк в дереве пакетов/сервисов/todo и цели
+    // вставки устаревают — перечитываем их, не дожидаясь ручного Refresh.
+    function refreshAfterSave() {
+        root.refreshPackages();
+        root.refreshServices();
+        root.refreshTodos();
+        targetsProc.running = true;
     }
 
     // Клик по строке сервиса. Для сервисов из nix-конфига (`services.foo`,
@@ -479,7 +491,7 @@ Rectangle {
                 Layout.preferredHeight: 28
                 Layout.alignment: Qt.AlignVCenter
                 text: "close"
-                onClicked: GlobalStates.nixosConfigOpen = false
+                onClicked: root.closeRequested()
                 StyledToolTip { text: Translation.tr("Close") }
             }
         }
