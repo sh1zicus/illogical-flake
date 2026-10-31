@@ -28,14 +28,14 @@ else
   say() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 fi
 
-restart_hyprland() {
+# Выполняет hyprctl от имени владельца графической сессии.
+run_hyprctl() {
   if [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || [ -z "${XDG_RUNTIME_DIR:-}" ]; then
     return 0
   fi
   local hyprctl_bin
   hyprctl_bin="$(command -v hyprctl 2>/dev/null)" || return 0
   [ -S "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket.sock" ] || return 0
-  say "Перезапускаю Hyprland..."
   if [ "$(id -u)" -eq 0 ]; then
     local run_as
     run_as="${QS_USER:-}"
@@ -46,14 +46,27 @@ restart_hyprland() {
       runuser -u "$run_as" -- env \
         XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
         HYPRLAND_INSTANCE_SIGNATURE="$HYPRLAND_INSTANCE_SIGNATURE" \
-        "$hyprctl_bin" dispatch exit >/dev/null 2>&1 || true
-      return 0
+        "$hyprctl_bin" "$@"
+      return $?
     fi
   fi
   env \
     XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
     HYPRLAND_INSTANCE_SIGNATURE="$HYPRLAND_INSTANCE_SIGNATURE" \
-    "$hyprctl_bin" dispatch exit >/dev/null 2>&1 || true
+    "$hyprctl_bin" "$@"
+}
+
+reload_hyprland() {
+  say "Перезагружаю конфиг Hyprland..."
+  run_hyprctl reload >/dev/null 2>&1 || true
+}
+
+restart_hyprland() {
+  say "Перезапускаю Hyprland..."
+  # Hyprland 0.56+ с Lua-конфигом принимает только Lua-диспетчеры
+  # (hyprctl dispatch 'hl.dsp.exit()'). Старый синтаксис — fallback.
+  run_hyprctl dispatch 'hl.dsp.exit()' >/dev/null 2>&1 && return 0
+  run_hyprctl dispatch exit >/dev/null 2>&1 || true
 }
 
 if ! command -v nix >/dev/null 2>&1; then
@@ -88,5 +101,9 @@ say "  sudo nixos-rebuild switch --rollback"
 say "  git -C /etc/nixos log --oneline && git -C /etc/nixos revert HEAD"
 
 if [ "${QS_BUILD:-0}" != "1" ]; then
-  restart_hyprland
+  if [ "$MODE" = "quick" ]; then
+    reload_hyprland
+  else
+    restart_hyprland
+  fi
 fi

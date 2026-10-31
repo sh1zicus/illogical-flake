@@ -32,6 +32,10 @@ Item {
     // показать, какие файлы не сохранены.
     property var dirtyFiles: ({})
     readonly property color unsavedColor: "#FFB74D"
+    // Цвета полосок git-diff в левой колонке редактора.
+    readonly property color gitAddedColor: Appearance.m3colors.darkmode ? "#3fb950" : "#2e7d32"
+    readonly property color gitModifiedColor: Appearance.m3colors.darkmode ? "#58a6ff" : "#1565c0"
+    readonly property color gitDeletedColor: Appearance.m3colors.darkmode ? "#f85149" : "#c62828"
     property bool gitCommitting: false
     property string gitCommitOutput: ""
     property bool loading: false
@@ -87,6 +91,13 @@ Item {
         ? 0
         : Math.max(40, editorFontMetrics.advanceWidth("0") * String(root.totalLines).length + 22)
 
+    // Полоски git-diff для текущего буфера относительно HEAD.
+    property var gitDiffMarkers: []
+    property bool gitDiffPending: false
+    property int gitDiffSeq: 0
+    property int diffRunSeq: 0
+    property string diffRunPath: ""
+
     // ---- подсказки при наборе ----
     property var wordIndex: []          // слова из всех файлов конфига, по частоте
     property bool indexReady: false
@@ -134,6 +145,7 @@ Item {
     // ---------------------------------------------------------------- git data
     function refreshGit() {
         gitProc.running = true;
+        root.scheduleGitDiff();
     }
 
     function parseGitOutput(text) {
@@ -274,12 +286,14 @@ Item {
         root.fileDirty = false;
         root.loading = true;
         root.viewMode = 0;
+        root.resetGitDiff();
         configFileView.path = root.currentFilePath();
     }
 
     function showFile() {
         servicePanel.stopLive();
         root.viewMode = 0;
+        root.scheduleGitDiff();
     }
 
     function hasUnsavedChanges() {
@@ -757,6 +771,68 @@ Item {
         root.syncingText = false;
     }
 
+    // ---------------------------------------------------------------- git diff gutter
+    function resetGitDiff() {
+        gitDiffTimer.stop();
+        root.gitDiffPending = false;
+        root.gitDiffMarkers = [];
+        root.gitDiffSeq++;
+    }
+
+    function scheduleGitDiff() {
+        root.gitDiffSeq++;
+        gitDiffTimer.restart();
+    }
+
+    function runGitDiff() {
+        if (root.loading || root.viewMode !== 0 || root.currentFile.length === 0
+                || root.rawText.length === 0) {
+            root.gitDiffMarkers = [];
+            return;
+        }
+        if (diffProc.running) {
+            root.gitDiffPending = true;
+            return;
+        }
+        root.diffRunSeq = ++root.gitDiffSeq;
+        root.diffRunPath = root.currentFile;
+        diffProc.command = ["bash", "-c",
+            "repo=/etc/nixos; rel=$1; tmp=$(mktemp); base=$(mktemp);"
+            + " trap 'rm -f \"$tmp\" \"$base\"' EXIT;"
+            + " cat > \"$tmp\";"
+            + " if git -C \"$repo\" cat-file -e \"HEAD:$rel\" 2>/dev/null; then"
+            + " git -C \"$repo\" show \"HEAD:$rel\" > \"$base\"; else : > \"$base\"; fi;"
+            + " diff -U0 --label \"a/$rel\" --label \"b/$rel\" \"$base\" \"$tmp\" || true",
+            "sh", root.currentFile];
+        diffProc.stdinEnabled = true;
+        diffProc.running = true;
+    }
+
+    function applyGitDiff(text) {
+        const markers = [];
+        const seen = {};
+        const add = (line, type) => {
+            const key = `${type}:${line}`;
+            if (seen[key]) return;
+            seen[key] = true;
+            markers.push({ line: line, type: type });
+        };
+        for (const line of (text || "").split("\n")) {
+            const m = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line);
+            if (!m) continue;
+            const oldCount = m[2] === undefined ? 1 : parseInt(m[2], 10);
+            const newStart = parseInt(m[3], 10);
+            const newCount = m[4] === undefined ? 1 : parseInt(m[4], 10);
+            if (newCount > 0) {
+                const type = oldCount > 0 ? "modified" : "added";
+                for (let i = 0; i < newCount; i++) add(newStart + i, type);
+            } else if (oldCount > 0) {
+                add(newStart, "deleted");
+            }
+        }
+        root.gitDiffMarkers = markers;
+    }
+
     // ---------------------------------------------------------------- build
     function performBuild(full) {
         NixosConfigBuild.performBuild(full, true);
@@ -1197,6 +1273,7 @@ Item {
                         property int gap: 6
                         readonly property int buttonCount: 6
                         readonly property real slotWidth: (width - 8 - gap * (buttonCount - 1)) / buttonCount
+                        readonly property real buttonWidth: Math.max(38, slotWidth)
                         readonly property bool compact: slotWidth < 125
                         implicitWidth: 0
                         implicitHeight: 0
@@ -1220,7 +1297,9 @@ Item {
                             IconAndTextToolbarButton {
                                 implicitHeight: 32
                                 Layout.fillWidth: true
+                                Layout.preferredWidth: editorToolbar.buttonWidth
                                 Layout.minimumWidth: 38
+                                Layout.maximumWidth: editorToolbar.buttonWidth
                                 iconText: "cloud_upload"
                                 text: editorToolbar.compact ? "" : Translation.tr("Commit & push")
                                 enabled: !root.gitCommitting
@@ -1233,7 +1312,9 @@ Item {
                             IconAndTextToolbarButton {
                                 implicitHeight: 32
                                 Layout.fillWidth: true
+                                Layout.preferredWidth: editorToolbar.buttonWidth
                                 Layout.minimumWidth: 38
+                                Layout.maximumWidth: editorToolbar.buttonWidth
                                 iconText: "bolt"
                                 text: editorToolbar.compact ? "" : Translation.tr("Quick build")
                                 enabled: !root.building
@@ -1243,7 +1324,9 @@ Item {
                             IconAndTextToolbarButton {
                                 implicitHeight: 32
                                 Layout.fillWidth: true
+                                Layout.preferredWidth: editorToolbar.buttonWidth
                                 Layout.minimumWidth: 38
+                                Layout.maximumWidth: editorToolbar.buttonWidth
                                 iconText: "system_update"
                                 text: editorToolbar.compact ? "" : Translation.tr("Full build")
                                 enabled: !root.building
@@ -1253,7 +1336,9 @@ Item {
                             IconAndTextToolbarButton {
                                 implicitHeight: 32
                                 Layout.fillWidth: true
+                                Layout.preferredWidth: editorToolbar.buttonWidth
                                 Layout.minimumWidth: 38
+                                Layout.maximumWidth: editorToolbar.buttonWidth
                                 iconText: "stop"
                                 text: editorToolbar.compact ? "" : Translation.tr("Cancel build")
                                 enabled: root.building
@@ -1264,7 +1349,9 @@ Item {
                             IconAndTextToolbarButton {
                                 implicitHeight: 32
                                 Layout.fillWidth: true
+                                Layout.preferredWidth: editorToolbar.buttonWidth
                                 Layout.minimumWidth: 38
+                                Layout.maximumWidth: editorToolbar.buttonWidth
                                 iconText: "folder_open"
                                 text: editorToolbar.compact ? "" : Translation.tr("Open folder")
                                 onClicked: {
@@ -1278,7 +1365,9 @@ Item {
                             IconAndTextToolbarButton {
                                 implicitHeight: 32
                                 Layout.fillWidth: true
+                                Layout.preferredWidth: editorToolbar.buttonWidth
                                 Layout.minimumWidth: 38
+                                Layout.maximumWidth: editorToolbar.buttonWidth
                                 iconText: "terminal"
                                 text: editorToolbar.compact ? "" : Translation.tr("Build console")
                                 toggled: root.showConsole
@@ -1402,6 +1491,7 @@ Item {
                                         if (editor.text !== root.rawText) root.rawText = editor.text;
                                         root.markDirty();
                                     }
+                                    root.scheduleGitDiff();
                                     root.cursorLine = root.lineOfPosition(cursorPosition);
                                     // cursorPosition ещё старый: пересчёт после
                                     // того, как курсор встанет на место.
@@ -1587,6 +1677,31 @@ Item {
                                     // Номер текущей строки — заметнее остальных.
                                     opacity: lineNo === root.cursorLine ? 0.95 : 0.4
                                     text: lineNo
+                                }
+                            }
+
+                            // Полоски изменений относительно git HEAD: зелёные —
+                            // добавленные строки, синие — изменённые, красная
+                            // риска на границе — удалённые.
+                            Repeater {
+                                model: root.gitDiffMarkers
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    readonly property bool isDeleted: modelData.type === "deleted"
+                                    x: 0
+                                    y: isDeleted
+                                        ? modelData.line * root.lineAdvance - editorScrollView.contentY
+                                        : (modelData.line - 1) * root.lineAdvance - editorScrollView.contentY
+                                    width: isDeleted ? 7 : 4
+                                    height: isDeleted ? 3 : root.lineAdvance
+                                    radius: 1
+                                    visible: y > -height && y < lineGutter.height
+                                    color: isDeleted
+                                        ? root.gitDeletedColor
+                                        : (modelData.type === "modified"
+                                            ? root.gitModifiedColor
+                                            : root.gitAddedColor)
+                                    opacity: 0.9
                                 }
                             }
                         }
@@ -2086,6 +2201,42 @@ Item {
         }
     }
 
+    Timer {
+        id: gitDiffTimer
+        interval: 400
+        repeat: false
+        onTriggered: root.runGitDiff()
+    }
+
+    // Считаем diff текущего буфера с HEAD через временные файлы: содержимое
+    // редактора приходит на stdin, версия из HEAD берётся из git.
+    Process {
+        id: diffProc
+        stdinEnabled: false
+        stdout: StdioCollector {
+            id: diffCollector
+            waitForEnd: true
+            onStreamFinished: {
+                if (root.diffRunSeq !== root.gitDiffSeq
+                        || root.diffRunPath !== root.currentFile
+                        || root.loading) return;
+                root.applyGitDiff(diffCollector.text);
+            }
+        }
+        onRunningChanged: {
+            if (diffProc.running) {
+                diffProc.write(root.rawText);
+                diffProc.stdinEnabled = false;
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            if (root.gitDiffPending) {
+                root.gitDiffPending = false;
+                Qt.callLater(root.runGitDiff);
+            }
+        }
+    }
+
     FileView {
         id: configFileView
         path: ""
@@ -2103,6 +2254,7 @@ Item {
                 root.fileDirty = false;
             }
             root.applyEditorText();
+            root.scheduleGitDiff();
             if (root.pendingLine > 0) {
                 const ln = root.pendingLine;
                 root.pendingLine = 0;
@@ -2121,6 +2273,7 @@ Item {
             root.loading = false;
             root.rawText = "";
             root.applyEditorText();
+            root.resetGitDiff();
             if (error === FileViewError.FileNotFound) {
                 root.statusHint = Translation.tr("no such file: %1").arg(configFileView.path);
             }

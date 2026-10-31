@@ -9,7 +9,6 @@ StyledPopup {
     id: root
     property string formattedDate: Qt.locale().toString(DateTime.clock.date, "dddd, MMMM dd, yyyy")
     property string formattedTime: DateTime.time
-    property string formattedUptime: DateTime.uptime
     property bool showWeather: false
 
     ColumnLayout {
@@ -20,12 +19,6 @@ StyledPopup {
         StyledPopupHeaderRow {
             icon: "calendar_month"
             label: root.formattedDate
-        }
-
-        StyledPopupValueRow {
-            icon: "timelapse"
-            label: Translation.tr("System uptime:")
-            value: root.formattedUptime
         }
 
         // Weather

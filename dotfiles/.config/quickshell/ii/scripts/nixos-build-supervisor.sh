@@ -63,7 +63,8 @@ write_reopen_marker() {
   fi
 }
 
-restart_hyprland() {
+# Выполняет hyprctl от имени владельца графической сессии.
+run_hyprctl() {
   [ -n "$session_user" ] && [ -n "$session_sig" ] && [ -n "$session_xdg" ] || return 0
   local hyprctl_bin
   hyprctl_bin="$(command -v hyprctl 2>/dev/null)" || return 0
@@ -72,13 +73,24 @@ restart_hyprland() {
     runuser -u "$session_user" -- env \
       XDG_RUNTIME_DIR="$session_xdg" \
       HYPRLAND_INSTANCE_SIGNATURE="$session_sig" \
-      "$hyprctl_bin" dispatch exit >/dev/null 2>&1 || true
-  else
-    env \
-      XDG_RUNTIME_DIR="$session_xdg" \
-      HYPRLAND_INSTANCE_SIGNATURE="$session_sig" \
-      "$hyprctl_bin" dispatch exit >/dev/null 2>&1 || true
+      "$hyprctl_bin" "$@"
+    return $?
   fi
+  env \
+    XDG_RUNTIME_DIR="$session_xdg" \
+    HYPRLAND_INSTANCE_SIGNATURE="$session_sig" \
+    "$hyprctl_bin" "$@"
+}
+
+reload_hyprland() {
+  run_hyprctl reload >/dev/null 2>&1 || true
+}
+
+restart_hyprland() {
+  # Hyprland 0.56+ с Lua-конфигом принимает только Lua-диспетчеры
+  # (hyprctl dispatch 'hl.dsp.exit()'). Старый синтаксис — fallback.
+  run_hyprctl dispatch 'hl.dsp.exit()' >/dev/null 2>&1 && return 0
+  run_hyprctl dispatch exit >/dev/null 2>&1 || true
 }
 
 resolve_session() {
@@ -151,12 +163,17 @@ fi
 
 if [ "$status" -eq 0 ]; then
   resolve_session
-  write_reopen_marker
   if [ -n "$session_user" ] && [ -n "$session_sig" ] && [ -n "$session_xdg" ]; then
-    printf '==> Перезапускаю Hyprland...\n' >> "$log" 2>/dev/null || true
-    restart_hyprland
+    if [ "$mode" = "quick" ]; then
+      printf '==> Перезагружаю конфиг Hyprland...\n' >> "$log" 2>/dev/null || true
+      reload_hyprland
+    else
+      write_reopen_marker
+      printf '==> Перезапускаю Hyprland...\n' >> "$log" 2>/dev/null || true
+      restart_hyprland
+    fi
   else
-    printf '==> Hyprland restart skipped: session not found\n' >> "$log" 2>/dev/null || true
+    printf '==> Hyprland reload/restart skipped: session not found\n' >> "$log" 2>/dev/null || true
   fi
 fi
 
