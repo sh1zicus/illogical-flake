@@ -274,6 +274,14 @@ Item {
                 }
             }
             QuickToggleButton {
+                toggled: GlobalStates.portProtonOpen
+                buttonIcon: "sports_esports"
+                onClicked: Quickshell.execDetached(["qs", "-p", Quickshell.shellPath(""), "ipc", "call", "portProton", "toggle"])
+                StyledToolTip {
+                    text: "PortProton"
+                }
+            }
+            QuickToggleButton {
                 toggled: false
                 buttonIcon: "restart_alt"
                 onClicked: {

@@ -47,6 +47,11 @@ hl.window_rule({match = {class = "kcm_.*" },                                  fl
 hl.window_rule({match = {class = ".*bluedevilwizard" },                      float = true})
 hl.window_rule({match = {title = ".*Welcome" },                              float = true})
 hl.window_rule({match = {title = "^(illogical-impulse Settings)$" },         float = true})
+-- Custom Quickshell app windows (NixOS Config, PortProton launcher) are
+-- regular toplevels and must float/center instead of being tiled.
+hl.window_rule({match = {class = "^org\\.quickshell$" },                     float = true})
+hl.window_rule({match = {class = "^org\\.quickshell$" },                     size = {"(monitor_w*0.72)", "(monitor_h*0.65)"} })
+hl.window_rule({match = {class = "^org\\.quickshell$" },                     center = true})
 hl.window_rule({match = {title = ".*Shell conflicts.*" },                    float = true})
 hl.window_rule({match = {class = "org.freedesktop.impl.portal.desktop.kde" }, float = true})
 hl.window_rule({match = {class = "org.freedesktop.impl.portal.desktop.kde" }, size = {"(monitor_w*0.55)", "(monitor_h*0.52)"} })
