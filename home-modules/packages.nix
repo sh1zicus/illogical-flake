@@ -102,6 +102,14 @@ in
       wl-clipboard
       # gamemode ставится системно через programs.gamemode (system-modules/services.nix)
 
+      # Wine/Proton backend for the QuickShell PortProton clone
+      wineWow64Packages.stable
+      winetricks
+      cabextract
+      icoutils
+      p7zip
+      steam-run
+
       # Development libraries
       libsoup_3
       libportal-gtk4
@@ -130,6 +138,7 @@ in
       kdePackages.polkit-kde-agent-1  # Polkit authentication agent
       kdePackages.kdialog  # Dialog prompts
       kdePackages.kirigami
+      kdePackages.kdenlive  # Video editor
 
       # Additional Qt support
       libsForQt5.qtgraphicaleffects

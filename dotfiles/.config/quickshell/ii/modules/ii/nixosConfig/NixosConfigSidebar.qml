@@ -246,13 +246,19 @@ Rectangle {
         configServicesProc.running = true;
     }
 
+    // Перечитать позиции списков пакетов. Нужно после вставки: номера строк
+    // в целях вставки сдвигаются, даже если файл ещё не сохранён.
+    function refreshPackageTargets() {
+        targetsProc.running = true;
+    }
+
     // После сохранения номера строк в дереве пакетов/сервисов/todo и цели
     // вставки устаревают — перечитываем их, не дожидаясь ручного Refresh.
     function refreshAfterSave() {
         root.refreshPackages();
         root.refreshServices();
         root.refreshTodos();
-        targetsProc.running = true;
+        root.refreshPackageTargets();
     }
 
     // Клик по строке сервиса. Для сервисов из nix-конфига (`services.foo`,

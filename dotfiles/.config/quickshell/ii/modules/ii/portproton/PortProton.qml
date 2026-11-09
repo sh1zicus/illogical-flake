@@ -9,8 +9,8 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 
-// PortProton-style game launcher built on top of the installed PortProton CLI.
-// The window is a normal floating app window, like NixosConfig.
+// PortProton-style game launcher that can use the original PortProton CLI or
+// run standalone. The window is a normal tiled app window, like NixosConfig.
 Scope {
     id: root
 
@@ -76,6 +76,24 @@ Scope {
         settingsTimer.restart();
     }
 
+    function openInstall() {
+        GlobalStates.portProtonOpen = true;
+        installTimer.restart();
+    }
+
+    Timer {
+        id: installTimer
+        interval: 300
+        repeat: false
+        onTriggered: {
+            if (contentLoader.item) {
+                contentLoader.item.viewIndex = 6;
+                contentLoader.item.openInstallDialog();
+            }
+            raiseTimer.restart();
+        }
+    }
+
     Timer {
         id: settingsTimer
         interval: 300
@@ -95,6 +113,10 @@ Scope {
 
         function settings(): void {
             root.openSettings();
+        }
+
+        function install(): void {
+            root.openInstall();
         }
     }
 

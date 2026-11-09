@@ -10,8 +10,8 @@ import Quickshell.Io
 import Quickshell.Hyprland
 
 // NixOS config manager window.
-// It is a regular floating window (a normal app window, movable between
-// workspaces) rather than an overlay layer-shell panel.
+// It is a regular tiled application window rather than an overlay
+// layer-shell panel or a floating dialog.
 // Content is loaded only while the window is open (Loader.active is tied to
 // GlobalStates.nixosConfigOpen), so nothing of the editor stays in memory when
 // the window is closed. A running rebuild survives closing because the build
@@ -47,7 +47,7 @@ Scope {
         id: configWindow
         visible: GlobalStates.nixosConfigOpen
         color: "transparent"
-        title: Translation.tr("NixOS Config")
+        title: "NixOS Config"
 
         implicitWidth: Appearance.sizes.wallpaperSelectorWidth - Appearance.sizes.elevationMargin * 2
         implicitHeight: Appearance.sizes.wallpaperSelectorHeight - Appearance.sizes.elevationMargin * 2

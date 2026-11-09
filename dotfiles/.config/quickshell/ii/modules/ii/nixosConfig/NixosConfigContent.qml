@@ -353,6 +353,116 @@ Item {
         root.markDirty();
     }
 
+    function nixSkipString(text, start) {
+        const c = text.charAt(start);
+        if (c === "\"") {
+            let i = start + 1;
+            while (i < text.length) {
+                if (text.charAt(i) === "\\") { i += 2; continue; }
+                if (text.charAt(i) === "\"") return i + 1;
+                i++;
+            }
+            return text.length;
+        }
+        if (text.startsWith("''", start)) {
+            const end = text.indexOf("''", start + 2);
+            return end < 0 ? text.length : end + 2;
+        }
+        const end = text.indexOf("'", start + 1);
+        return end < 0 ? text.length : end + 1;
+    }
+
+    function nixSkipTrivia(text, start) {
+        let i = start;
+        while (i < text.length) {
+            while (i < text.length && /\s/.test(text.charAt(i))) i++;
+            if (i >= text.length) return -1;
+            if (text.charAt(i) === "#") {
+                const nl = text.indexOf("\n", i);
+                i = nl < 0 ? text.length : nl + 1;
+                continue;
+            }
+            if (text.charAt(i) === "/" && text.charAt(i + 1) === "*") {
+                const end = text.indexOf("*/", i + 2);
+                i = end < 0 ? text.length : end + 2;
+                continue;
+            }
+            break;
+        }
+        return i;
+    }
+
+    // Ищет закрывающую "]" списка home.packages / environment.systemPackages
+    // прямо в текущем тексте редактора. Цели из nixos-pkg-targets.py читаются
+    // с диска и устаревают после несохранённых правок, из-за чего вставка
+    // могла попасть в соседний список (например, в блок fish).
+    function findPackageListTarget(text, source) {
+        const keyRe = source === "system"
+            ? /environment\.systemPackages\s*=\s*/g
+            : /home\.packages\s*=\s*/g;
+        let match;
+        while ((match = keyRe.exec(text)) !== null) {
+            let i = root.nixSkipTrivia(text, keyRe.lastIndex);
+            if (i < 0) continue;
+            while (text.startsWith("with", i) && !/[A-Za-z0-9_]/.test(text.charAt(i + 4))) {
+                let j = root.nixSkipTrivia(text, i + 4);
+                if (j < 0) { i = -1; break; }
+                while (j < text.length && text.charAt(j) !== ";") {
+                    const c = text.charAt(j);
+                    if (c === "\"" || c === "'") { j = root.nixSkipString(text, j); continue; }
+                    if (c === "#") {
+                        const nl = text.indexOf("\n", j);
+                        j = nl < 0 ? text.length : nl + 1;
+                        continue;
+                    }
+                    if (c === "/" && text.charAt(j + 1) === "*") {
+                        const end = text.indexOf("*/", j + 2);
+                        j = end < 0 ? text.length : end + 2;
+                        continue;
+                    }
+                    j++;
+                }
+                if (j >= text.length) { i = -1; break; }
+                i = root.nixSkipTrivia(text, j + 1);
+                if (i < 0) break;
+            }
+            if (i < 0 || text.charAt(i) !== "[") continue;
+            let depth = 0;
+            let j = i;
+            while (j < text.length) {
+                const c = text.charAt(j);
+                if (c === "\"" || c === "'") { j = root.nixSkipString(text, j); continue; }
+                if (c === "#") {
+                    const nl = text.indexOf("\n", j);
+                    j = nl < 0 ? text.length : nl + 1;
+                    continue;
+                }
+                if (c === "/" && text.charAt(j + 1) === "*") {
+                    const end = text.indexOf("*/", j + 2);
+                    j = end < 0 ? text.length : end + 2;
+                    continue;
+                }
+                if (c === "[") { depth++; j++; continue; }
+                if (c === "]") {
+                    depth--;
+                    if (depth === 0) {
+                        const lines = text.substring(0, j).split("\n");
+                        let indent = 0;
+                        for (let k = lines.length - 2; k >= 0; k--) {
+                            if (lines[k].trim().length > 0) {
+                                indent = lines[k].length - lines[k].trimStart().length;
+                                break;
+                            }
+                        }
+                        return { closeLine: lines.length, indent: indent };
+                    }
+                }
+                j++;
+            }
+        }
+        return null;
+    }
+
     // Вставка пакета НОВОЙ СТРОКОЙ в конец списка (home.packages или
     // environment.systemPackages), а не в позицию курсора: так пакет сразу
     // попадает в нужный файл и в правильное место. Если файл ещё не открыт —
@@ -362,8 +472,10 @@ Item {
         const entry = target.withPkgs ? attr : `pkgs.${attr}`;
         root.pendingInsert = {
             path: target.path,
+            source: target.source || (target.path.indexOf("system-modules") >= 0 ? "system" : "home"),
             line: target.closeLine,
-            text: " ".repeat(target.indent) + entry
+            indent: target.indent,
+            entry: entry
         };
         if (root.currentFile === target.path) {
             root.insertPendingLine();
@@ -376,9 +488,13 @@ Item {
         const ins = root.pendingInsert;
         if (!ins || !editor || root.loading || ins.path !== root.currentFile) return;
         root.pendingInsert = null;
+        const target = root.findPackageListTarget(root.rawText, ins.source);
+        const line = target ? target.closeLine : ins.line;
+        const indent = target ? target.indent : ins.indent;
+        const entry = ins.entry || String(ins.text || "").trim();
         const lines = root.rawText.split("\n");
-        const idx = Math.max(0, Math.min(lines.length, ins.line - 1));
-        lines.splice(idx, 0, ins.text);
+        const idx = Math.max(0, Math.min(lines.length, line - 1));
+        lines.splice(idx, 0, " ".repeat(indent) + entry);
         root.suppressCompletion = true;
         root.syncingText = true;
         editor.text = lines.join("\n");
@@ -389,7 +505,8 @@ Item {
         root.completionManual = false;
         root.markDirty();
         editor.forceActiveFocus();
-        root.statusHint = Translation.tr("%1 → %2").arg(ins.text.trim()).arg(ins.path);
+        root.statusHint = Translation.tr("%1 → %2").arg(entry).arg(ins.path);
+        if (rightSidebar) rightSidebar.refreshPackageTargets();
     }
 
     function openPackage(path, line) {
