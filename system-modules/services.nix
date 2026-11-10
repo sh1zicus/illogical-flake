@@ -61,6 +61,13 @@
   # Не пишем coredump при крашах — меньше записей на SSD, быстрый выход игры.
   systemd.coredump.enable = false;
 
+  # Без systemd-coredump ядро пишет дампы (core.PID) прямо в рабочую папку
+  # упавшего процесса при ulimit unlimited. Обнуляем лимит — дампы не создаются.
+  security.pam.loginLimits = [
+    { domain = "*"; type = "soft"; item = "core"; value = "0"; }
+    { domain = "*"; type = "hard"; item = "core"; value = "0"; }
+  ];
+
   # Логи в RAM (volatile), максимум 64M — журнал не валит страницы на диск.
   services.journald.settings.Journal = {
     Storage = "volatile";
