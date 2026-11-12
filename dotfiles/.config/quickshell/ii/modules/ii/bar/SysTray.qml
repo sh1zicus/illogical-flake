@@ -151,7 +151,7 @@ Item {
             font.pixelSize: Appearance.font.pixelSize.larger
             color: Appearance.colors.colSubtext
             text: "•"
-            visible: root.showSeparator && SystemTray.items.values.length > 0
+            visible: root.showSeparator && (root.pinnedItems.length + root.unpinnedItems.length) > 0
         }
     }
 }

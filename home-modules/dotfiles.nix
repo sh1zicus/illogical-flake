@@ -180,6 +180,41 @@ in
       # kdeglobals материал-тему) — не затираем, если уже существуют.
       preserveFiles=("kdeglobals")
 
+      # Файлы, которыми управляет рантайм ПОД ~/.config/hypr: страница Displays
+      # в Настройках пишет monitors.lua (nwg-displays-совместимый путь),
+      # hyprconfigurator/hyprland GUI пишут shellOverrides/main.lua. Так как
+      # copy_config сносит ~/.config/hypr целиком — бэкапим их до копирования
+      # и восстанавливаем после (аналог excludes-листа установщика end-4).
+      runtimeManagedSubpaths=(
+        "hypr/monitors.lua"
+        "hypr/workspaces.lua"
+        "hypr/hyprland/shellOverrides/main.lua"
+      )
+      runtimeBackup=""
+      for rel in "''${runtimeManagedSubpaths[@]}"; do
+        if [ -f "$targetPath/$rel" ]; then
+          if [ -z "$runtimeBackup" ]; then
+            runtimeBackup="$(mktemp -d)"
+          fi
+          $DRY_RUN_CMD mkdir -p "$runtimeBackup/$(dirname "$rel")"
+          $DRY_RUN_CMD cp "$targetPath/$rel" "$runtimeBackup/$rel"
+        fi
+      done
+
+      restoreRuntimeManaged() {
+        if [ -z "$runtimeBackup" ]; then
+          return 0
+        fi
+        for rel in "''${runtimeManagedSubpaths[@]}"; do
+          if [ -f "$runtimeBackup/$rel" ]; then
+            $DRY_RUN_CMD mkdir -p "$targetPath/$(dirname "$rel")"
+            $DRY_RUN_CMD cp "$runtimeBackup/$rel" "$targetPath/$rel"
+          fi
+        done
+        rm -rf "$runtimeBackup"
+        runtimeBackup=""
+      }
+
       # is_in <name> <items...>: есть ли name в списке.
       is_in() {
         local needle="$1"; shift
@@ -240,6 +275,10 @@ in
       fi
 
       copy_config
+
+      # Восстанавливаем runtime-управляемые файлы, которые скопировал поверх
+      # copy_config (список — runtimeManagedSubpaths выше).
+      restoreRuntimeManaged
 
       # --- Правки Qt-темирования после копирования (см. environment.nix) ---
 

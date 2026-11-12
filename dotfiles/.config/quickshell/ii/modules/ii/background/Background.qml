@@ -50,6 +50,7 @@ Variants {
         }
         readonly property real parallaxRation: Config.options.background.parallax.workspaceZoom
         property real minSuitableScale: 1 // Some reasonable init, to be updated
+        property bool wallpaperSizeKnown: false // Set once identify resolves (or fails), so we decode only once
         property real effectiveWallpaperScale: minSuitableScale * parallaxRation
         property int wallpaperWidth: modelData.width // Some reasonable init value, to be updated
         property int wallpaperHeight: modelData.height // Some reasonable init value, to be updated
@@ -93,19 +94,27 @@ Variants {
         }
 
         onWallpaperPathChanged: {
+            bgRoot.wallpaperSizeKnown = false;
             bgRoot.updateZoomScale();
             // Clock position gets updated after zoom scale is updated
         }
 
         // Wallpaper zoom scale
         function updateZoomScale() {
+            bgRoot.wallpaperSizeKnown = false;
             getWallpaperSizeProc.path = bgRoot.wallpaperPath;
             getWallpaperSizeProc.running = true;
+        }
+        Component.onCompleted: {
+            if (bgRoot.wallpaperPath.length > 0)
+                bgRoot.updateZoomScale();
         }
         Process {
             id: getWallpaperSizeProc
             property string path: bgRoot.wallpaperPath
             command: ["magick", "identify", "-format", "%w %h", path]
+            // Even if identify fails, allow the wallpaper to load with the initial estimate
+            onExited: bgRoot.wallpaperSizeKnown = true
             stdout: StdioCollector {
                 id: wallpaperSizeOutputCollector
                 onStreamFinished: {
@@ -180,7 +189,7 @@ Variants {
                     return - bgRoot.parallaxTotalPixelsY * usedFractionY;
                 }
 
-                source: bgRoot.wallpaperSafetyTriggered ? "" : bgRoot.wallpaperPath
+                source: (bgRoot.wallpaperSafetyTriggered || !bgRoot.wallpaperSizeKnown) ? "" : bgRoot.wallpaperPath
                 fillMode: Image.PreserveAspectCrop
                 Behavior on x {
                     NumberAnimation {
@@ -196,6 +205,12 @@ Variants {
                 }
                 width: bgRoot.scaledWallpaperWidth
                 height: bgRoot.scaledWallpaperHeight
+                // Cap the decode at the final on-screen size in physical pixels instead of loading
+                // the full-resolution wallpaper. Based on the scaled wallpaper size (not the raw
+                // screen size) so mismatched aspect ratios and the parallax/zoom scale stay sharp.
+                sourceSize: Qt.size(
+                    Math.ceil(bgRoot.scaledWallpaperWidth * bgRoot.devicePixelRatio),
+                    Math.ceil(bgRoot.scaledWallpaperHeight * bgRoot.devicePixelRatio))
             }
 
             Loader {

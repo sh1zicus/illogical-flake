@@ -28,4 +28,5 @@ in
 {
   material-symbols = pkgs.callPackage ./material-symbols { };
   papirus-patched  = papirus-patched;
+  ytmtui           = pkgs.callPackage ./ytmtui { };
 }

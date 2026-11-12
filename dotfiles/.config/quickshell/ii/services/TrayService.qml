@@ -9,8 +9,11 @@ Singleton {
     id: root
 
     property bool smartTray: Config.options.tray.filterPassive
-    property list<var> itemsInUserList: SystemTray.items.values.filter(i => (Config.options.tray.pinnedItems.includes(i.id) && (!smartTray || i.status !== Status.Passive)))
-    property list<var> itemsNotInUserList: SystemTray.items.values.filter(i => (!Config.options.tray.pinnedItems.includes(i.id) && (!smartTray || i.status !== Status.Passive)))
+    function isHidden(item) {
+        return Config.options.tray.hideWineIcons && /^\d+$/.test(item.id);
+    }
+    property list<var> itemsInUserList: SystemTray.items.values.filter(i => (!isHidden(i) && Config.options.tray.pinnedItems.includes(i.id) && (!smartTray || i.status !== Status.Passive)))
+    property list<var> itemsNotInUserList: SystemTray.items.values.filter(i => (!isHidden(i) && !Config.options.tray.pinnedItems.includes(i.id) && (!smartTray || i.status !== Status.Passive)))
 
     property bool invertPins: Config.options.tray.invertPinnedItems
     property list<var> pinnedItems: invertPins ? itemsNotInUserList : itemsInUserList

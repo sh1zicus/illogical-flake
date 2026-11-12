@@ -1293,6 +1293,13 @@ def pid_alive(pid):
         return False
 
 
+def process_group(pid):
+    try:
+        return os.getpgid(int(pid))
+    except (OSError, ValueError, TypeError):
+        return 0
+
+
 def process_command(pid):
     try:
         with open("/proc/%d/cmdline" % int(pid), "rb") as handle:
@@ -1346,10 +1353,26 @@ def current_running(root):
             alive.append(record)
     if len(alive) != len(records):
         save_running(root, alive)
-    seen = {record.get("pid") for record in alive}
+    seen = set()
+    groups = set()
+    for record in alive:
+        pid = record.get("pid")
+        try:
+            seen.add(int(pid))
+        except (TypeError, ValueError):
+            pass
+        group = process_group(pid)
+        if group:
+            groups.add(group)
     for session in native_sessions(root):
-        if session["pid"] not in seen:
-            alive.append(session)
+        pid = int(session["pid"])
+        group = process_group(pid)
+        if pid in seen or (group and group in groups):
+            continue
+        alive.append(session)
+        seen.add(pid)
+        if group:
+            groups.add(group)
     return alive
 
 
@@ -1359,7 +1382,14 @@ def stop_game(args):
     stopped = []
     for record in records:
         exe = record.get("exe", "")
-        if args.all or not args.exe or os.path.realpath(exe) == os.path.realpath(args.exe):
+        matches = args.all
+        if not matches and args.pid:
+            matches = int(record.get("pid", 0)) == args.pid
+        elif not matches and args.exe:
+            matches = bool(exe) and os.path.realpath(exe) == os.path.realpath(args.exe)
+        elif not matches:
+            matches = True
+        if matches:
             try:
                 os.killpg(int(record["pid"]), signal.SIGTERM)
             except OSError:
@@ -1938,6 +1968,7 @@ def main():
     parser.add_argument("--name", default="")
     parser.add_argument("--installer", default="")
     parser.add_argument("--exe", default="")
+    parser.add_argument("--pid", type=int, default=0)
     parser.add_argument("--wine", default="")
     parser.add_argument("--windows-ver", default="")
     parser.add_argument("--locale", default="")

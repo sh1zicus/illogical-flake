@@ -347,3 +347,9 @@ hl.bind("CTRL + SHIFT + Escape", hl.dsp.exec_cmd(taskManager), { description = "
 --# Cursed stuff
 --## Make window not amogus large
 hl.bind("CTRL + SUPER + Backslash", hl.dsp.window.resize({ x = 640, y = 480, "exact" }))
+
+--# OBS
+hl.bind("SUPER + ALT + F10", hl.dsp.exec_cmd("python3 $HOME/.local/bin/obs-save-replay.py"),
+    { description = "OBS: Save replay buffer" })
+hl.bind("mouse:276", hl.dsp.exec_cmd("python3 $HOME/.local/bin/obs-save-replay.py"),
+    { description = "OBS: Save replay buffer (mouse5)" })

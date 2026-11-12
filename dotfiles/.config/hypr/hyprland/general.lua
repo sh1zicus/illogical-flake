@@ -82,6 +82,11 @@ hl.config({
         rounding_power = 2.5,
         rounding = 18,
 
+        -- Window transparency (managed by the "Windows" page in Settings)
+        active_opacity = 0.9,
+        inactive_opacity = 0.8,
+        fullscreen_opacity = 1.0,
+
         blur = {
             enabled = true,
             xray = true,

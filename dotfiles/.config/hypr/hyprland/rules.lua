@@ -11,6 +11,10 @@ hl.window_rule({match = {class = "^()$", title = "^()$" },                   no_
 -- `zen-twilight`, so the main browser window stays sharp.)
 hl.window_rule({match = {class = "^(?!foot$|org\\.quickshell$|zen-twilight\\.webapp-).*$" }, no_blur = true })
 
+-- Hide the Xwayland helper window used by xembedsniproxy while bridging
+-- legacy (Wine/Proton) tray icons to SNI (see execs.lua).
+hl.window_rule({match = {class = "^xembedsniproxy$" }, float = true, opacity = 0.0, no_blur = true })
+
 -- Floating
 hl.window_rule({match = {title = "^(Open File)(.*)$" },                      center = true})
 hl.window_rule({match = {title = "^(Open File)(.*)$" },                      float = true})

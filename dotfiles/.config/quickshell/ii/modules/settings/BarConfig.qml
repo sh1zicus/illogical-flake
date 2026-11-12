@@ -162,6 +162,15 @@ ContentPage {
                 Config.options.tray.monochromeIcons = checked;
             }
         }
+
+        ConfigSwitch {
+            buttonIcon: "visibility_off"
+            text: Translation.tr('Hide Wine tray icons')
+            checked: Config.options.tray.hideWineIcons
+            onCheckedChanged: {
+                Config.options.tray.hideWineIcons = checked;
+            }
+        }
     }
 
     ContentSection {

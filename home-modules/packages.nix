@@ -125,6 +125,9 @@ in
       kdePackages.breeze-icons  # KDE Breeze icons (required by Papirus inheritance)
       bibata-cursors      # Cursor theme (Bibata-Modern-Classic used by Hyprland)
 
+      # YouTube Music TUI (Rust, mpv-бэкенд) — пакет из pkgs/ytmtui.
+      customPkgs.ytmtui
+
       # Python with required packages for wallpaper analysis
       pythonEnv
       eza  # Modern ls replacement
@@ -136,6 +139,9 @@ in
       kdePackages.bluedevil  # Bluetooth management (for kcm_bluetooth)
       kdePackages.plasma-nm  # Network management (for kcm_networkmanagement)
       kdePackages.polkit-kde-agent-1  # Polkit authentication agent
+      # xembedsniproxy: мост XEmbed→SNI, чтобы tray-иконки Wine/Proton (PortProton)
+      # появлялись в баре, а не отдельным окном (запуск — hyprland/execs.lua).
+      kdePackages.plasma-workspace
       kdePackages.kdialog  # Dialog prompts
       kdePackages.kirigami
       kdePackages.kdenlive  # Video editor
