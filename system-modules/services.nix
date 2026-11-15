@@ -17,6 +17,16 @@
   # ниже задержка звука без фризов под нагрузкой в играх.
   security.rtkit.enable = true;
 
+  # Низкая задержка PipeWire (меньше quantum) для игр и голосового чата.
+  services.pipewire.extraConfig.pipewire."99-lowlatency" = {
+    "context.properties" = {
+      "default.clock.rate" = 48000;
+      "default.clock.quantum" = 512;
+      "default.clock.min-quantum" = 256;
+      "default.clock.max-quantum" = 1024;
+    };
+  };
+
   # zram: сжатый swap в RAM вместо сброса на SSD — игры не фризят при
   # нехватке памяти, отзывчивость под нагрузкой выше.
   zramSwap = {
@@ -42,6 +52,10 @@
     # cake вместо fq: AQM сглаживает джиттер и буферблоат под нагрузкой.
     # Для игрового UDP (Stalcraft) это важнее, чем для TCP — bbr лечит только TCP.
     "net.core.default_qdisc" = "cake";
+    # Большие сокет-буферы и TCP Fast Open — меньше задержек и хендшейков.
+    "net.core.rmem_max" = 16777216;
+    "net.core.wmem_max" = 16777216;
+    "net.ipv4.tcp_fastopen" = 3;
   };
 
   # Модуль cake нужен доступным до применения net.core.default_qdisc.
@@ -66,6 +80,11 @@
   security.pam.loginLimits = [
     { domain = "*"; type = "soft"; item = "core"; value = "0"; }
     { domain = "*"; type = "hard"; item = "core"; value = "0"; }
+    # Wine/Proton-играм нужен запас файловых дескрипторов и mlock.
+    { domain = "*"; type = "soft"; item = "nofile"; value = "1048576"; }
+    { domain = "*"; type = "hard"; item = "nofile"; value = "1048576"; }
+    { domain = "*"; type = "soft"; item = "memlock"; value = "unlimited"; }
+    { domain = "*"; type = "hard"; item = "memlock"; value = "unlimited"; }
   ];
 
   # Логи в RAM (volatile), максимум 64M — журнал не валит страницы на диск.
@@ -93,6 +112,23 @@
     extraPackages = with pkgs; [
       vulkan-tools
     ];
+  };
+
+  # CoreCtrl + overdrive: кульки, частоты и лимит мощности RX 580.
+  hardware.amdgpu.overdrive.enable = true;
+  programs.corectrl.enable = true;
+
+  # sched-ext: BPF-планировщик для ровного frame-time (ядро 6.18).
+  services.scx = {
+    enable = true;
+    scheduler = "scx_bpfland";
+  };
+
+  # ananicy-cpp: автоматические nice/IONice для игр и фоновых задач.
+  services.ananicy = {
+    enable = true;
+    package = pkgs.ananicy-cpp;
+    rulesProvider = pkgs.ananicy-cpp;
   };
 
   # GameMode: поднимает приоритет игры, переводит CPU в performance,

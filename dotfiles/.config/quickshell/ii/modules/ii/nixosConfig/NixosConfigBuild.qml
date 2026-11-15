@@ -22,6 +22,17 @@ Singleton {
     // Лог пишет root, поэтому он лежит в /var/log: пользователь не может
     // заранее создать там symlink и заставить root перезаписать чужой файл.
     readonly property string buildLogPath: "/var/log/nixos-build.log"
+    // Файл лога может быть в мегабайтах. В консоли держим только хвост: иначе
+    // RichText-подсветка всего лога съедает память и CPU и вешает шелл.
+    readonly property int maxLogChars: 200000
+
+    function setLog(text) {
+        const value = text || "";
+        const tail = value.length > root.maxLogChars
+            ? value.slice(-root.maxLogChars)
+            : value;
+        if (tail !== root.logText) root.logText = tail;
+    }
     readonly property string buildSupervisorPath: "/etc/nixos/dotfiles/.config/quickshell/ii/scripts/nixos-build-supervisor.sh"
     readonly property string buildCancelPath: {
         const dir = Quickshell.env("XDG_RUNTIME_DIR");
@@ -98,7 +109,7 @@ Singleton {
         onFileChanged: reload()
         onLoaded: {
             const out = buildLogView.text().replace(/\r/g, "").replace(/\^@/g, "");
-            if (out !== root.logText) root.logText = out;
+            root.setLog(out);
         }
     }
 

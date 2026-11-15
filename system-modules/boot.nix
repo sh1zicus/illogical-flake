@@ -42,6 +42,16 @@
 
     # Не синхронизировать TSC: без дрейфа и без лишних остановок.
     "tsc=reliable"
+
+    # Отключить ASPM: меньше латентности и микро-стуттера на шине.
+    "pcie_aspm=off"
+
+    # Восстановление GPU после ошибок вместо зависания драйвера.
+    "amdgpu.gpu_recovery=1"
+
+    # Wine и старые игры с невыровненными atomic-операциями не должны
+    # ловить throttling от split-lock detection.
+    "split_lock_detect=off"
   ];
 
   boot.loader.grub = {
