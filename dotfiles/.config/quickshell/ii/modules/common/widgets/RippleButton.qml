@@ -22,6 +22,8 @@ Button {
     property var releaseAction // When left clicking (release)
     property var altAction // When right clicking
     property var middleClickAction // When middle clicking
+    property var doubleClickAction // When double clicking
+    property int lastClickModifiers: 0 // Modifiers of the last left click
 
     property color colBackground: ColorUtils.transparentize(Appearance?.colors.colLayer1Hover, 1) || "transparent"
     property color colBackgroundHover: Appearance?.colors.colLayer1Hover ?? "#E5DFED"
@@ -70,6 +72,7 @@ Button {
                 if (root.middleClickAction) root.middleClickAction();
                 return;
             }
+            root.lastClickModifiers = event.modifiers
             root.down = true
             if (root.downAction) root.downAction();
             if (!root.rippleEnabled) return;
@@ -79,10 +82,15 @@ Button {
         onReleased: (event) => {
             root.down = false
             if (event.button != Qt.LeftButton) return;
+            root.lastClickModifiers = event.modifiers
             if (root.releaseAction) root.releaseAction();
             root.click() // Because the MouseArea already consumed the event
             if (!root.rippleEnabled) return;
             rippleFadeAnim.restart();
+        }
+        onDoubleClicked: (event) => {
+            if (root.doubleClickAction)
+                Qt.callLater(() => root.doubleClickAction(event));
         }
         onCanceled: (event) => {
             root.down = false

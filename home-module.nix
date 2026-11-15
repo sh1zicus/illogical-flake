@@ -14,12 +14,12 @@ in
     ./home-modules/dotfiles.nix
   ];
 
-  # Входы flake (quickshell, nur, dotfiles) прокидываем под-модулям через
-  # _module.args, а не через (import ./x.nix inputs). Так файлы в
+  # Входы flake (quickshell, nur, dotfiles, ytmtui) прокидываем под-модулям
+  # через _module.args, а не через (import ./x.nix inputs). Так файлы в
   # home-modules/ остаются «обычными» модулями (их можно импортировать куда
   # угодно без обёрток), а все вложенные импорты видят эти аргументы.
   config._module.args = {
-    inherit (inputs) quickshell nur dotfiles;
+    inherit (inputs) quickshell nur dotfiles ytmtui;
   };
 
   # Main options for Illogical Impulse

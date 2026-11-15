@@ -172,6 +172,7 @@
         "nur": "nur",
         "portproton-nixos": "portproton-nixos",
         "quickshell": "quickshell",
+        "ytmtui": "ytmtui",
         "zen-browser": "zen-browser"
       }
     },
@@ -187,6 +188,26 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
+        "type": "github"
+      }
+    },
+    "ytmtui": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794733676,
+        "narHash": "sha256-CcRg71EVk8PtI+nHcKc8DUXiIpUK445atNUDNiTpZws=",
+        "owner": "sh1zicus",
+        "repo": "ytmtui",
+        "rev": "d2f8a51e9fd63db8a951a7a71a4f83e631bf0814",
+        "type": "github"
+      },
+      "original": {
+        "owner": "sh1zicus",
+        "repo": "ytmtui",
         "type": "github"
       }
     },

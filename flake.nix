@@ -41,9 +41,15 @@
     portproton-nixos = {
       url = "git+https://github.com/Redm00use/PortProton-NixOS";
     };
+
+    # ytmtui — форк с управлением громкостью и собственным Nix-пакетом.
+    ytmtui = {
+      url = "github:sh1zicus/ytmtui";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, home-manager, quickshell, nur, dotfiles, portproton-nixos, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, quickshell, nur, dotfiles, portproton-nixos, ytmtui, ... }@inputs:
     let
       system = "x86_64-linux";
       hostname = "nixos";
@@ -54,7 +60,7 @@
       illogicalModule = { config, lib, pkgs, ... }:
         (import ./home-module.nix) {
           inherit config lib pkgs;
-          inputs = { inherit quickshell nur dotfiles; };
+          inputs = { inherit quickshell nur dotfiles ytmtui; };
         };
     in {
       nixosConfigurations.${hostname} = nixpkgs.lib.nixosSystem {

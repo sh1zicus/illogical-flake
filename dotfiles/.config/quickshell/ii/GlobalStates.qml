@@ -31,6 +31,7 @@ Singleton {
     property bool wallpaperSelectorOpen: false
     property bool nixosConfigOpen: false
     property bool portProtonOpen: false
+    property bool fileManagerOpen: false
     property bool todoWindowOpen: false
     property bool workspaceShowNumbers: false
 

@@ -148,6 +148,20 @@ in
         templates = mkDefault "$HOME/.Templates";
         videos = mkDefault "$HOME/Videos";
       };
+      desktopEntries.quickshell-filemanager = {
+        name = "Files";
+        genericName = "File manager";
+        comment = "Quickshell file manager";
+        exec = "qs -c ii ipc call fileManager open";
+        icon = "system-file-manager";
+        terminal = false;
+        categories = [ "System" "FileManager" "Utility" ];
+        settings = {
+          "Name[ru]" = "Файлы";
+          "GenericName[ru]" = "Файловый менеджер";
+          "Comment[ru]" = "Файловый менеджер Quickshell";
+        };
+      };
     };
 
     # Set icon theme via dconf for GNOME/GTK apps

@@ -83,8 +83,8 @@ hl.config({
         rounding = 18,
 
         -- Window transparency (managed by the "Windows" page in Settings)
-        active_opacity = 0.9,
-        inactive_opacity = 0.8,
+        active_opacity = 0.98,
+        inactive_opacity = 0.94,
         fullscreen_opacity = 1.0,
 
         blur = {
@@ -108,7 +108,7 @@ hl.config({
             enabled = true,
             range = 20,
             offset = {0, 2},
-            render_power = 10,
+            render_power = 4,
             color = "rgba(00000020)"
 
         },

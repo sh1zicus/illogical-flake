@@ -52,12 +52,13 @@ hl.window_rule({match = {class = ".*bluedevilwizard" },                      flo
 hl.window_rule({match = {title = ".*Welcome" },                              float = true})
 hl.window_rule({match = {title = "^(illogical-impulse Settings)$" },         float = true})
 -- Detached Quickshell windows (for example the detached sidebar) float and
--- center. The NixOS Config editor and the PortProton launcher are normal
--- tiled application windows, so they are excluded from these rules.
-hl.window_rule({match = {class = "^org\\.quickshell$", title = "^(?!(PortProton|NixOS Config)$).*$" }, float = true})
-hl.window_rule({match = {class = "^org\\.quickshell$", title = "^(?!(PortProton|NixOS Config)$).*$" }, size = {"(monitor_w*0.72)", "(monitor_h*0.65)"} })
-hl.window_rule({match = {class = "^org\\.quickshell$", title = "^(?!(PortProton|NixOS Config)$).*$" }, center = true})
-hl.window_rule({match = {class = "^org\\.quickshell$", title = "^(PortProton|NixOS Config)$" },      tile = true})
+-- center. The NixOS Config editor, the PortProton launcher and the file
+-- manager are normal application windows, so they are excluded from these
+-- rules.
+hl.window_rule({match = {class = "^org\\.quickshell$", title = "^(?!(PortProton|NixOS Config|File Manager)$).*$" }, float = true})
+hl.window_rule({match = {class = "^org\\.quickshell$", title = "^(?!(PortProton|NixOS Config|File Manager)$).*$" }, size = {"(monitor_w*0.72)", "(monitor_h*0.65)"} })
+hl.window_rule({match = {class = "^org\\.quickshell$", title = "^(?!(PortProton|NixOS Config|File Manager)$).*$" }, center = true})
+hl.window_rule({match = {class = "^org\\.quickshell$", title = "^(PortProton|NixOS Config|File Manager)$" }, tile = true})
 hl.window_rule({match = {title = ".*Shell conflicts.*" },                    float = true})
 hl.window_rule({match = {class = "org.freedesktop.impl.portal.desktop.kde" }, float = true})
 hl.window_rule({match = {class = "org.freedesktop.impl.portal.desktop.kde" }, size = {"(monitor_w*0.55)", "(monitor_h*0.52)"} })
@@ -104,9 +105,10 @@ hl.window_rule({match = {class = "^(steam_app).*" }, immediate = true})
 -- No shadow for tiled windows
 hl.window_rule({match = {float = 0 }, no_shadow = true})
 
--- Zen web apps (taskbar tabs): translucent + rounded so the blur shows
--- through. The main browser window is unaffected (no opacity rule on it).
-hl.window_rule({match = {class = "^zen-twilight\\.webapp-.*$" }, opacity = "0.9 0.8"})
+-- Zen browser: no transparency for the main window or its web apps (taskbar
+-- tabs), overriding the global active/inactive opacity.
+hl.window_rule({match = {class = "^zen-twilight$" }, opacity = "1.0 1.0"})
+hl.window_rule({match = {class = "^zen-twilight\\.webapp-.*$" }, opacity = "1.0 1.0"})
 hl.window_rule({match = {class = "^zen-twilight\\.webapp-.*$" }, rounding = 12 })
 
 -- ######## Workspace rules ########

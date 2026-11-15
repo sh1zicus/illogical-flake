@@ -6,10 +6,10 @@ local hyprScripts = "$HOME/.config/hypr/hyprland/scripts"
 local qsIpcCall = "qs -c $qsConfig ipc call"
 local qsIsAlive = qsIpcCall .. " TEST_ALIVE"
 
-hl.bind("SUPER + SUPER_L", hl.dsp.global("quickshell:searchToggleRelease"), { description = "Shell: Toggle search" })
-hl.bind("SUPER + SUPER_R", hl.dsp.global("quickshell:searchToggleRelease"))
-hl.bind("SUPER + SUPER_L", hl.dsp.exec_cmd(qsIsAlive .. " || pkill fuzzel || fuzzel"))
-hl.bind("SUPER + SUPER_R", hl.dsp.exec_cmd(qsIsAlive .. " || pkill fuzzel || fuzzel"))
+local searchToggle = hl.dsp.exec_cmd(qsIpcCall .. " search toggle || pkill fuzzel || fuzzel")
+hl.bind("SUPER + SUPER_L", searchToggle,
+    { release = true, description = "Shell: Toggle search" })
+hl.bind("SUPER + SUPER_R", searchToggle, { release = true })
 
 hl.bind("SUPER_L", hl.dsp.global("quickshell:workspaceNumber"), { ignore_mods = true, transparent = true })
 hl.bind("SUPER_R", hl.dsp.global("quickshell:workspaceNumber"), { ignore_mods = true, transparent = true })
@@ -334,7 +334,8 @@ hl.bind("CTRL + SHIFT + ALT + SUPER + Delete", hl.dsp.exec_cmd("systemctl powero
 --##! Apps
 hl.bind("SUPER + Return", hl.dsp.exec_cmd(terminal), { description = "App: Terminal" })
 hl.bind("CTRL + ALT + T", hl.dsp.exec_cmd(terminal))
-hl.bind("SUPER + E", hl.dsp.exec_cmd(fileManager), { description = "App: File manager" })
+hl.bind("SUPER + E", hl.dsp.global("quickshell:fileManagerToggle"), { description = "App: File manager" })
+hl.bind("SUPER + E", hl.dsp.exec_cmd(qsIsAlive .. " || " .. fileManager))
 hl.bind("SUPER + W", hl.dsp.exec_cmd(browser), { description = "App: Browser" })
 hl.bind("SUPER + C", hl.dsp.exec_cmd(codeEditor), { description = "App: Code editor" })
 hl.bind("CTRL + SUPER + SHIFT + ALT + W", hl.dsp.exec_cmd(officeSoftware), { description = "App: Office software" })

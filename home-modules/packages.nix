@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, ytmtui, ... }:
 
 let
   cfg = config.programs.illogical-impulse;
@@ -6,6 +6,7 @@ let
   # Локальные пакеты; papirus-patched = Papirus с исправленным наследованием
   # (Adwaita вместо breeze), патч при сборке в pkgs/default.nix.
   customPkgs = import ../pkgs { inherit pkgs; };
+  ytmtuiPkg = ytmtui.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
   # Python environment for quickshell wallpaper analysis
   pythonEnv = pkgs.python3.withPackages (ps: [
@@ -125,8 +126,8 @@ in
       kdePackages.breeze-icons  # KDE Breeze icons (required by Papirus inheritance)
       bibata-cursors      # Cursor theme (Bibata-Modern-Classic used by Hyprland)
 
-      # YouTube Music TUI (Rust, mpv-бэкенд) — пакет из pkgs/ytmtui.
-      customPkgs.ytmtui
+      # YouTube Music TUI (Rust, mpv-бэкенд) — форк из flake-входа ytmtui.
+      ytmtuiPkg
 
       # Python with required packages for wallpaper analysis
       pythonEnv
