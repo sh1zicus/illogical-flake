@@ -82,9 +82,11 @@ hl.config({
         rounding_power = 2.5,
         rounding = 18,
 
-        -- Window transparency (managed by the "Windows" page in Settings)
-        active_opacity = 0.98,
-        inactive_opacity = 0.94,
+        -- Transparency is opt-in: regular windows are fully opaque. Only foot
+        -- (alpha=0.9 in foot.ini) and the quickshell UI (backgroundTransparency
+        -- in its config) are translucent, so leave the global opacity at 1.0.
+        active_opacity = 1.0,
+        inactive_opacity = 1.0,
         fullscreen_opacity = 1.0,
 
         blur = {

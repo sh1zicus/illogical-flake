@@ -24,6 +24,7 @@ import qs.modules.ii.sidebarRight
 import qs.modules.ii.overlay
 import qs.modules.ii.fileManager
 import qs.modules.ii.todoWindow
+import qs.modules.ii.ytMusic
 import qs.modules.ii.verticalBar
 import qs.modules.ii.wallpaperSelector
 
@@ -50,6 +51,7 @@ Scope {
     PanelLoader { component: SidebarRight {} }
     PanelLoader { component: FileManager {} }
     PanelLoader { component: TodoWindow {} }
+    PanelLoader { component: YtMusic {} }
     PanelLoader { extraCondition: Config.options.bar.vertical; component: VerticalBar {} }
     PanelLoader { component: WallpaperSelector {} }
 }

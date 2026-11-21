@@ -105,8 +105,9 @@ hl.window_rule({match = {class = "^(steam_app).*" }, immediate = true})
 -- No shadow for tiled windows
 hl.window_rule({match = {float = 0 }, no_shadow = true})
 
--- Zen browser: no transparency for the main window or its web apps (taskbar
--- tabs), overriding the global active/inactive opacity.
+-- Zen browser: keep the main window and its web apps (taskbar tabs) fully
+-- opaque; global opacity is 1.0, these are just explicit guards. Web apps get
+-- tighter rounding.
 hl.window_rule({match = {class = "^zen-twilight$" }, opacity = "1.0 1.0"})
 hl.window_rule({match = {class = "^zen-twilight\\.webapp-.*$" }, opacity = "1.0 1.0"})
 hl.window_rule({match = {class = "^zen-twilight\\.webapp-.*$" }, rounding = 12 })

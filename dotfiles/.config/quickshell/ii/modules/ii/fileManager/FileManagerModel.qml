@@ -29,7 +29,11 @@ Singleton {
     property bool loading: false
     property bool showHidden: false
 
-    property int iconScale: 100
+    property int iconScale: Persistent.states.fileManager?.iconScale ?? 100
+    onIconScaleChanged: {
+        if (Persistent.states.fileManager && Persistent.states.fileManager.iconScale !== iconScale)
+            Persistent.states.fileManager.iconScale = iconScale;
+    }
     readonly property int listIconSize: Math.max(16, Math.round(22 * root.iconScale / 100))
     readonly property int gridIconSize: Math.max(32, Math.round(48 * root.iconScale / 100))
     readonly property int gridCellSize: Math.max(88, root.gridIconSize + 64)

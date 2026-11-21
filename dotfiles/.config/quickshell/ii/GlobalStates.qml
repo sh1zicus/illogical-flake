@@ -33,6 +33,7 @@ Singleton {
     property bool portProtonOpen: false
     property bool fileManagerOpen: false
     property bool todoWindowOpen: false
+    property bool ytMusicOpen: false
     property bool workspaceShowNumbers: false
 
     onSidebarRightOpenChanged: {
