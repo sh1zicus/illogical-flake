@@ -747,6 +747,8 @@ Singleton {
 
         const watchUrl = "https://music.youtube.com/watch?v=" + id;
         const vol = Math.max(0, Math.min(150, (root.volume > 0 ? root.volume : 100)));
+        const ytdlRaw = ["retries=10", "fragment_retries=10", "socket_timeout=15", "extractor_retries=3"];
+        if (root.cookiesReady) ytdlRaw.push("cookies=" + root.cookiesPath);
         const cmd = [
             "bash", "-lc", 'rm -f "$1"; exec "${@:2}"', "qs-ytmusic-mpv",
             root.ownSocketPath,
@@ -756,12 +758,15 @@ Singleton {
             "--term-playing-msg=",
             "--audio-client-name=qs-ytmusic",
             "--volume=" + vol,
+            "--network-timeout=15",
+            "--cache=yes",
+            "--demuxer-max-bytes=150MiB",
+            "--demuxer-readahead-secs=30",
+            "--stream-lavf-o=reconnect=1,reconnect_streamed=1,reconnect_delay_max=5",
             "--ytdl-format=bestaudio/best",
-            "--script-opts=ytdl_hook-ytdl_path=" + root.ytDlpBin
+            "--script-opts=ytdl_hook-ytdl_path=" + root.ytDlpBin,
+            "--ytdl-raw-options=" + ytdlRaw.join(",")
         ];
-        if (root.cookiesReady) {
-            cmd.push("--ytdl-raw-options=cookies=" + root.cookiesPath);
-        }
         cmd.push(watchUrl);
 
         if (ownMpvProc.running) {

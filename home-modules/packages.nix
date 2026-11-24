@@ -156,6 +156,7 @@ in
       fish
     ] ++ lib.optionals cfg.dotfiles.starship.enable [
       starship
+      btop
     ];
   };
 }

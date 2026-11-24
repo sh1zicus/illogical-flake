@@ -41,7 +41,7 @@
   # пулы EKB (Екатеринбург) и NSK1 (Новосибирск) — всё остальное блокируется
   # (список IP тянется из API, см. stalzone-blocker.nix).
   services.stalzone-blocker = {
-    enable = true;
+    enable = false;
     login = "nixos";
     excludePools = [ "EKB" "NSK1" ];
   };

@@ -81,23 +81,39 @@
         ];
       };
 
-      youtube-tls = {
-        priority = 30;
+      youtube-googlevideo-tls = {
+        priority = 25;
         hosts.include = [
-          "youtube.com"
-          "youtu.be"
-          "youtube-nocookie.com"
           "googlevideo.com"
-          "ytimg.com"
-          "ggpht.com"
-          "youtubei.googleapis.com"
-          "youtube.googleapis.com"
         ];
         parameters = [
           "--filter-tcp=443"
           "--payload=tls_client_hello"
-          "--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:repeats=1"
-          "--lua-desync=fakedsplit:pos=1,midsld:tcp_ts=-1000"
+          "--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:tls_mod=rnd,dupsid,sni=www.google.com:repeats=8:badsum"
+          "--lua-desync=fakeddisorder:pos=midsld:badsum"
+        ];
+      };
+
+      youtube-tls = {
+        priority = 30;
+        hosts.include = [
+          "youtube.com"
+          "music.youtube.com"
+          "youtu.be"
+          "youtube-nocookie.com"
+          "ytimg.com"
+          "ggpht.com"
+          "youtubei.googleapis.com"
+          "youtube.googleapis.com"
+          "youtubeembeddedplayer.googleapis.com"
+          "yt3.ggpht.com"
+          "jnn-pa.googleapis.com"
+        ];
+        parameters = [
+          "--filter-tcp=443"
+          "--payload=tls_client_hello"
+          "--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:tls_mod=rnd,dupsid,sni=www.google.com:repeats=6:badsum"
+          "--lua-desync=multidisorder:pos=1,midsld"
         ];
       };
 
@@ -105,14 +121,38 @@
         priority = 40;
         hosts.include = [
           "youtube.com"
+          "music.youtube.com"
+          "youtu.be"
           "googlevideo.com"
           "youtubei.googleapis.com"
           "youtube.googleapis.com"
+          "youtubeembeddedplayer.googleapis.com"
+          "yt3.ggpht.com"
+          "ggpht.com"
         ];
         parameters = [
           "--filter-udp=443"
           "--payload=quic_initial"
-          "--lua-desync=fake:blob=fake_default_quic:repeats=3"
+          "--lua-desync=drop"
+        ];
+      };
+
+      animelib-tls = {
+        priority = 45;
+        hosts.include = [
+          "animelib.org"
+          "hentaicdn.org"
+          "hentaichan.live"
+          "mangalib.me"
+          "mangalib.org"
+          "slashlib.me"
+          "yaoilib.net"
+        ];
+        parameters = [
+          "--filter-tcp=443"
+          "--payload=tls_client_hello"
+          "--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:tls_mod=rnd,dupsid,sni=www.google.com:repeats=6:badsum"
+          "--lua-desync=fakeddisorder:pos=midsld:badsum"
         ];
       };
 

@@ -9,6 +9,13 @@
   # Enable networking
   networking.networkmanager.enable = true;
 
+  networking.extraHosts = ''
+    162.159.129.233 media.discordapp.net images.discordapp.net images-ext-1.discordapp.net images-ext-2.discordapp.net
+    162.159.133.233 media.discordapp.net images.discordapp.net images-ext-1.discordapp.net images-ext-2.discordapp.net
+    162.159.134.233 media.discordapp.net images.discordapp.net images-ext-1.discordapp.net images-ext-2.discordapp.net
+    162.159.135.233 media.discordapp.net images.discordapp.net images-ext-1.discordapp.net images-ext-2.discordapp.net
+  '';
+
   # Set your time zone.
   time.timeZone = "Asia/Novosibirsk";
 
