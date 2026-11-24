@@ -22,7 +22,6 @@ import qs.modules.ii.sessionScreen
 import qs.modules.ii.sidebarLeft
 import qs.modules.ii.sidebarRight
 import qs.modules.ii.overlay
-import qs.modules.ii.fileManager
 import qs.modules.ii.todoWindow
 import qs.modules.ii.ytMusic
 import qs.modules.ii.verticalBar
@@ -49,7 +48,7 @@ Scope {
     PanelLoader { component: SessionScreen {} }
     PanelLoader { component: SidebarLeft {} }
     PanelLoader { component: SidebarRight {} }
-    PanelLoader { component: FileManager {} }
+    // PanelLoader { component: FileManager {} } // disabled: quickshell file manager clone
     PanelLoader { component: TodoWindow {} }
     PanelLoader { component: YtMusic {} }
     PanelLoader { extraCondition: Config.options.bar.vertical; component: VerticalBar {} }
